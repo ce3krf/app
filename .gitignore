@@ -1,0 +1,5 @@
+# Entornos virtuales y carpetas Python
+venv/
+**/venv/
+python/
+**/python/

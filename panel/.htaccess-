@@ -1,0 +1,4 @@
+AuthType Basic
+AuthUserFile /home/dh_jcpz7j/mapacuidadosstgo.cl/admin/.htpasswd
+AuthName "Solo usuarios autorizados - Use sus datos de acceso habituales"
+require valid-user

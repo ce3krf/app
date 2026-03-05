@@ -1,0 +1,3 @@
+
+SELECT * from  peredifica where ( (estado=1) and (lat <>'') and (lon <> '') )
+ and ( status1 = 'OK' or ok = 'OK' ) 

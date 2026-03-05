@@ -1,0 +1,181 @@
+/* 
+// ************************************************************
+// Autor: Marcelo Jiménez
+// Fulltrust Software
+// https://www.fulltrust.net
+// Fecha última actualización: 2023-10-05 14:34:37
+// ************************************************************
+*/
+
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300&display=swap');
+
+:root {
+    --main: #023047;
+    --topdiv: #4a8ecd;
+    --bg: #ffffff;
+    --bg2: #e3f2fd;
+    --top: #4e7dbb;
+    --amarillo: #fff3cd;
+    --grisclaro: #fefefe;
+}
+
+body {
+    background-color: var(--bg);
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+td {
+    vertical-align: top;
+}
+
+tr {
+    vertical-align: top;
+}
+
+
+
+/* Place this code in your CSS file */
+
+.cd-top {
+    display: inline-block;
+    height: 40px;
+    width: 40px;
+    position: fixed;
+    bottom: 40px;
+    right: 15px;
+    /* image replacement properties */
+    overflow: hidden;
+    text-indent: 100%;
+    white-space: nowrap;
+    background: rgba(193, 18, 31, 0.9) url(../img/cd-top-arrow.png) no-repeat center 50%;
+    visibility: hidden;
+    opacity: 0;
+    border-radius: 50%;
+    /* Hace que el elemento sea un círculo */
+    -webkit-transition: opacity .5s 0s, visibility 0s .3s;
+    -moz-transition: opacity .3s 0s, visibility 0s .3s;
+    transition: opacity .3s 0s, visibility 0s .3s;
+}
+
+.cd-top.cd-is-visible,
+.cd-top.cd-fade-out,
+.no-touch .cd-top:hover {
+    -webkit-transition: opacity .3s 0s, visibility 0s 0s;
+    -moz-transition: opacity .3s 0s, visibility 0s 0s;
+    transition: opacity .3s 0s, visibility 0s 0s;
+}
+
+.cd-top.cd-is-visible {
+    /* el botón se vuelve visible */
+    visibility: visible;
+    opacity: 1;
+}
+
+.cd-top.cd-fade-out {
+    /* si el usuario sigue desplazándose hacia abajo, el botón se desenfoca y se vuelve menos visible */
+    opacity: .5;
+}
+
+.no-touch .cd-top:hover {
+    background-color: #e86256;
+    opacity: 1;
+}
+
+
+.buttons-excel {
+    display: none !important;
+}
+
+
+.sep10 {
+    clear: both;
+    height: 10px;
+}
+
+
+
+label {
+    color: var(--main);
+    background-color: #f0f0f0;
+    width: 100%;
+    padding: 5px;
+    text-transform: uppercase;
+
+    font-size: 14px;
+    font-weight: 500;
+
+    border-bottom-width: 1px;
+    border-bottom-style: solid;
+    border-bottom-color: var(--topdiv);
+
+    margin-top: 5px;
+}
+
+
+.topdiv {
+    height: 5px;
+    clear: both;
+    background-color: var(--main);
+}
+
+
+
+
+/* el título de cada página y los botones de la derecha / arriba */
+.top-info-div {
+    padding: 0px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+
+    border-style: none;
+    border-width: 0px;
+
+    border-bottom-width: 1px;
+    border-bottom-style: solid;
+    border-bottom-color:var(--top);
+
+    background-color: var(--grisclaro);
+
+    margin-top: 5px;
+    margin-bottom: 10px;
+
+}
+
+
+.spin-icon {
+    display: inline-block;
+    animation: spin 2s linear infinite;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+
+#sidebarMenu {
+    color: #ffffff !important;
+}
+#sidebarMenu a {
+    color: #ffffff !important;
+}
+
+#sidebarMenu a:hover {
+    color: yellowgreen !important;
+}
+
+
+#porEstado {
+    width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+

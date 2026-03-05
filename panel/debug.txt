@@ -1,0 +1,1 @@
+select * from usuarios where usuarios_userid='marjim' and usuarios_password='14573551495e839dc422ebc281e92c3c'

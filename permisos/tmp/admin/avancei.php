@@ -1,0 +1,558 @@
+<?php 
+// ************************************************************
+// Autor: Marcelo Jiménez
+// Fulltrust Software
+// https://www.fulltrust.net
+// Fecha última actualización: 2024-09-10 14:52:13
+// ************************************************************
+?>
+<?php
+
+//error_reporting(E_ALL);
+//ini_set('display_errors', '1');
+
+
+@session_start();
+include("../conf/db.php");		
+include('functions.php');
+
+
+include("inc_tablai.php");
+
+?>
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1">	
+<title><?php echo $row_param["parametros_titulo"];?></title>
+
+
+<script src="js/jquery-3.5.1.min.js"></script>	
+	
+<link rel="icon" type="image/png" href="../favicon.png">
+	
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+	
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jquery-confirm/3.3.2/jquery-confirm.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-confirm/3.3.2/jquery-confirm.min.js"></script>	
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.2/css/all.min.css">
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" integrity="sha512-GsLlZN/3F2ErC5ifS5QtgpiJtWd43JWSuIgh7mbzZ8zBps+dvLusV+eNQATqgA/HdeKFVgA5v3S/cIrLF7QnIg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<link rel="stylesheet" type="text/css" href="../css/styles.css"/>		
+
+
+
+
+
+<style>
+:root {
+  --raya: #2d6a4f; /* Verde oscuro */
+}
+
+table {
+    font-size:12px !important;
+}
+
+.td_estados {
+    background-color: #2d6a4f; /* Verde oscuro */
+    color: white;
+    font-weight: bold;
+}
+
+.td_titulo {
+    background-color: #74c69d; /* Verde claro */
+    color: black;
+    font-weight: bold;
+    
+    border-bottom-style: solid;
+    border-bottom-width: 1px;
+    border-bottom-color: var(--raya);
+}
+
+.td_totales {
+    background-color: #74c69d; /* Verde claro */
+    color: black;
+    font-weight: bold;
+}
+
+.tr_data {
+    border-bottom-style: solid;
+    border-bottom-width: 1px;
+    border-bottom-color: var(--raya);
+}
+
+.raya_r {
+    border-right-style: solid;
+    border-right-width: 1px;
+    border-right-color: var(--raya);
+}
+
+</style>
+
+
+
+
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <style>
+#pprint {
+    margin: 10px !important;
+}
+</style>    
+
+<script>
+    async function pdf() {
+        const element = document.getElementById('pprint');
+        
+        // Capturar el contenido del elemento con html2canvas
+        const canvas = await html2canvas(element, {
+            scale: window.devicePixelRatio, // Escala alta para mayor fidelidad
+            useCORS: true, // Manejo de recursos externos
+            scrollY: 0 // Evitar desplazamientos no deseados
+        });
+
+        // Convertir el canvas a imagen
+        const imgData = canvas.toDataURL('image/jpeg', 0.98);
+
+        // Crear una instancia de jsPDF
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF({
+            orientation: 'landscape', // Orientación del PDF
+            unit: 'in',
+            format: 'letter' // Formato de la página
+        });
+
+        // Obtener las dimensiones del canvas y calcular la escala para el PDF
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = pdf.internal.pageSize.getHeight();
+        const imgWidth = canvas.width / 96; // Convertir píxeles a pulgadas
+        const imgHeight = canvas.height / 96;
+        const aspectRatio = imgWidth / imgHeight;
+
+        let finalWidth = pdfWidth;
+        let finalHeight = pdfWidth / aspectRatio;
+
+        if (finalHeight > pdfHeight) {
+            finalHeight = pdfHeight;
+            finalWidth = pdfHeight * aspectRatio;
+        }
+
+        // Agregar la imagen al PDF
+        pdf.addImage(imgData, 'JPEG', 0, 0, finalWidth, finalHeight);
+
+        // Agregar numeración de páginas (si se multiplica en varias)
+        const totalPages = pdf.internal.getNumberOfPages();
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
+
+        for (let i = 1; i <= totalPages; i++) {
+            pdf.setPage(i);
+            pdf.setFontSize(10);
+            pdf.text(`Página ${i} de ${totalPages}`, pageWidth / 2, pageHeight - 0.5, { align: 'center' });
+        }
+
+        // Descargar el PDF
+        pdf.save('graficos.pdf');
+    }
+</script>
+
+
+
+</head>
+<body>
+
+<?php include("header.php");?>
+
+    <div class="container-fluid">
+        <div class="row">
+
+        <?php include("sidebar.php");?>
+
+            <!-- Área de trabajo central -->
+            <main role="main" class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+
+                <div class="row top-info-div">
+                    <div class="col">
+                        <h5>AVANCE FINANCIERO</h5>
+                    </div>
+                    <div class="col text-end">
+                    </div>                        
+                </div>
+
+                <div class="container">
+
+
+                    <div class="row">
+                        
+
+<!-- ****************************************** -->
+
+<form method="post" target="_self">
+<div class="row">
+<div class="col">
+
+<select class="form-select" name="area" id="area" style="width:150px; float:left">
+        <option value="">Ámbito (todas)</option>
+        <?php do { ?>
+        <option <?php if($row_areas["area"]==$_GET["area"]){ echo "selected";};?> value="<?php echo $row_areas["area"];?>"><?php echo $row_areas["area"];?></option>
+        <?php } while ( $row_areas = $areas->fetch_assoc() ); ?>
+</select>  
+
+
+<select class="form-select" name="tipo" id="tipo" style="width:150px;float:left">
+        <option value="">Tipos (todos)</option>
+        <?php do { ?>
+        <option <?php if($row_tipos["tipo"]==$_GET["tipo"]){ echo "selected";};?> value="<?php echo $row_tipos["tipo"];?>"><?php echo $row_tipos["tipo"];?></option>
+        <?php } while ( $row_tipos = $tipos->fetch_assoc() ); ?>
+</select>        
+
+<button onclick="lanza();" type="button" class="btn btn-primary">Aplicar</button>
+<button id="exportarExcel" type="button" class="btn btn-outline-success" >Exportar a Excel</button>
+
+<script>
+function lanza(){    
+var sarea = document.getElementById("area");
+var area_value = sarea.value;
+
+var stipo = document.getElementById("tipo");
+var tipo_value = stipo.value;
+
+//jconfirm.instances[0].close();
+avance(area_value, tipo_value);
+
+}
+
+
+function avance(area, tipo){
+        var x = Math.random();
+        window.location='avancei.php?area='+area+'&tipo='+tipo+"&x="+x;
+}      
+
+
+
+
+        $(document).ready(function () {
+            $("#exportarExcel").click(function () {
+                // 1. Obtener la tabla
+                var tabla = document.getElementById("tablaDatos");
+
+                // 2. Convertir la tabla a una hoja de cálculo
+                var workbook = XLSX.utils.table_to_book(tabla, { sheet: "Hoja1" });
+
+                // 3. Guardar el archivo
+                XLSX.writeFile(workbook, "tabla_exportada.xlsx");
+            });
+        });
+
+
+
+
+</script>    
+
+
+
+</div>
+</div>
+
+
+<div style="height:15px; clear:both"></div>
+
+</form>
+
+<?php
+$sql = "select * from tablai ";
+if(!$tabla = $db->query($sql)){
+    die('Hay un error [' . $db->error . ']');
+}   
+$row_tabla = $tabla->fetch_assoc();
+?>    
+
+<div id="pprint">
+<i>* Valores en miles de pesos</i>
+<table id="tablaDatos" width="100%" border="0" cellspacing="0" cellpadding="5">
+  <tbody>
+    <tr>
+
+
+      <td>
+     
+      </td>
+
+      <td>
+
+      </td>
+
+
+
+
+
+      <td class="td_estados" colspan="16" align="center">ESTADOS</td>
+      <td colspan="2" align="center"></td>
+    </tr>
+    <tr>
+      <td class="td_titulo">ÁMBITO</td>
+      <td class="td_titulo raya_r">TIPO</td>
+      <td class="td_titulo raya_r" colspan="2" align="center">EN ESPERA</td>
+      <td class="td_titulo raya_r" colspan="2" align="center">FORMULADA</td>
+      <td class="td_titulo raya_r" colspan="2" align="center">POSTULADA A FINANCIAMIENTO</td>
+      <td class="td_titulo raya_r" colspan="2" align="center">EN LICITACIÓN</td>
+      <td class="td_titulo raya_r" colspan="2" align="center">ETAPA EN EJECUCIÓN</td>
+      <td class="td_titulo raya_r" colspan="2" align="center">FINALIZADA ETAPA PERFIL / PREFACTIBILIDAD</td>
+      <td class="td_titulo raya_r" colspan="2" align="center">FINALIZADA ETAPA DISEÑO</td>
+      <td class="td_titulo" colspan="2" align="center">FINALIZADA</td>
+      <td class="td_titulo" colspan="2" align="center">TOTAL</td>
+    </tr>
+
+<?php 
+$num=0;
+
+$tt1=0;
+$tt2=0;
+$tt3=0;
+$tt4=0;
+$tt5=0;
+$tt6=0;
+$tt7=0;
+$tt8=0;
+?>
+
+<?php do { ?>  
+ 
+<?php
+$num++;    
+if (($num % 2) == 0) {
+    $bg="#f1faee";
+} else {
+    $bg="#ffffff";
+}    
+?>
+
+    <tr style="background-color: <?php echo $bg;?>">
+      <td class="tr_data"><?php echo $row_tabla["area"];?></td>
+      <td class="tr_data raya_r"><?php echo $row_tabla["tipo"];?></td>
+      <?php if ($row_tabla["e1v"] > 0){ ?>
+      <td class="tr_data " align="center"><?php echo number_format($row_tabla["e1v"], 0);?></td>
+      <?php } else { ?>
+      <td class="tr_data " align="center"></td>
+      <?php } ?>
+
+      <?php if ($row_tabla["e1p"] > 0){ 
+        $te1s = $te1s + $row_tabla["e1s"];?>
+      <td class="tr_data raya_r" align="center"><?php echo number_format($row_tabla["e1s"], 0)."";?></td>
+      <?php } else { ?>
+      <td class="tr_data raya_r" align="center"></td>
+      <?php } ?>      
+
+      <?php if ($row_tabla["e2v"] > 0){ ?>
+      <td class="tr_data " align="center"><?php echo number_format($row_tabla["e2v"], 0);?></td>
+      <?php } else { ?>
+      <td class="tr_data " align="center"></td>
+      <?php } ?>   
+
+      <?php if ($row_tabla["e2p"] > 0){ 
+        $te2s = $te2s + $row_tabla["e2s"];?>
+      <td class="tr_data raya_r" align="center"><?php echo number_format($row_tabla["e2s"], 0)."";?></td>
+      <?php } else { ?>
+      <td class="tr_data raya_r" align="center"></td>
+      <?php } ?>   
+
+      <?php if ($row_tabla["e3v"] > 0){ ?>
+      <td class="tr_data " align="center"><?php echo number_format($row_tabla["e3v"], 0);?></td>
+      <?php } else { ?>
+      <td class="tr_data " align="center"></td>
+      <?php } ?>   
+
+      <?php if ($row_tabla["e3p"] > 0){ 
+        $te3s = $te3s + $row_tabla["e3s"];?>
+      <td class="tr_data raya_r" align="center"><?php echo number_format($row_tabla["e3s"], 0)."";?></td>
+      <?php } else { ?>
+      <td class="tr_data raya_r" align="center"></td>
+      <?php } ?> 
+
+      <?php if ($row_tabla["e4v"] > 0){ ?>      
+      <td class="tr_data " align="center"><?php echo number_format($row_tabla["e4v"], 0);?></td>
+      <?php } else { ?>
+      <td class="tr_data " align="center"></td>
+      <?php } ?> 
+
+      <?php if ($row_tabla["e4p"] > 0){ 
+        $te4s = $te4s + $row_tabla["e4s"];?>   
+      <td class="tr_data raya_r" align="center"><?php echo number_format($row_tabla["e4s"], 0)."";?></td>
+      <?php } else { ?>
+      <td class="tr_data raya_r" align="center"></td>
+      <?php } ?> 
+
+      <?php if ($row_tabla["e5v"] > 0){ ?>
+      <td class="tr_data " align="center"><?php echo number_format($row_tabla["e5v"], 0);?></td>
+      <?php } else { ?>
+      <td class="tr_data " align="center"></td>
+      <?php } ?> 
+
+      <?php if ($row_tabla["e5p"] > 0){ 
+        $te5s = $te5s + $row_tabla["e5s"];?>
+      <td class="tr_data raya_r" align="center"><?php echo number_format($row_tabla["e5s"], 0)."";?></td>
+      <?php } else { ?>
+      <td class="tr_data raya_r" align="center"></td>
+      <?php } ?> 
+
+      <?php if ($row_tabla["e6v"] > 0){ ?>
+      <td class="tr_data " align="center"><?php echo number_format($row_tabla["e6v"], 0);?></td>
+      <?php } else { ?>
+      <td class="tr_data " align="center"></td>
+      <?php } ?> 
+
+      <?php if ($row_tabla["e6p"] > 0){ 
+        $te6s = $te6s + $row_tabla["e6s"];?>
+      <td class="tr_data raya_r" align="center"><?php echo number_format($row_tabla["e6s"], 0)."";?></td>
+      <?php } else { ?>
+      <td class="tr_data raya_r" align="center"></td>
+      <?php } ?> 
+
+
+
+      <?php if ($row_tabla["e7v"] > 0){ ?>
+      <td class="tr_data " align="center"><?php echo number_format($row_tabla["e7v"], 0);?></td>
+      <?php } else { ?>
+      <td class="tr_data " align="center"></td>
+      <?php } ?> 
+
+      <?php if ($row_tabla["e7p"] > 0){ 
+        $te7s = $te7s + $row_tabla["e7s"];?>
+      <td class="tr_data raya_r" align="center"><?php echo number_format($row_tabla["e7s"], 0)."";?></td>
+      <?php } else { ?>
+      <td class="tr_data raya_r" align="center"></td>
+      <?php } ?>       
+
+
+      <?php if ($row_tabla["e8v"] > 0){ ?>
+      <td class="tr_data " align="center"><?php echo number_format($row_tabla["e8v"], 0);?></td>
+      <?php } else { ?>
+      <td class="tr_data " align="center"></td>
+      <?php } ?> 
+
+      <?php if ($row_tabla["e8p"] > 0){ 
+        $te8s = $te8s + $row_tabla["e8s"];?>
+      <td class="tr_data raya_r" align="center"><?php echo number_format($row_tabla["e8s"], 0)."";?></td>
+      <?php } else { ?>
+      <td class="tr_data raya_r" align="center"></td>
+      <?php } ?>       
+
+      <?php
+        $ts = 0;
+        $ts = $row_tabla["e1s"];
+        $ts = $ts + $row_tabla["e2s"];
+        $ts = $ts + $row_tabla["e3s"];
+        $ts = $ts + $row_tabla["e4s"];
+        $ts = $ts + $row_tabla["e5s"];
+        $ts = $ts + $row_tabla["e6s"];
+        $ts = $ts + $row_tabla["e7s"];
+        $ts = $ts + $row_tabla["e8s"];
+      ?>
+
+
+      <td class="tr_data" align="center"><?php echo number_format($row_tabla["tt"], 0);?></td>
+      <td class="tr_data" align="center"><?php echo number_format($ts, 0)."";?></td>
+    </tr>
+
+<?php
+// totales
+
+$tt1 = $tt1 + $row_tabla["e1v"];
+$tt2 = $tt2 + $row_tabla["e2v"];
+$tt3 = $tt3 + $row_tabla["e3v"];
+$tt4 = $tt4 + $row_tabla["e4v"];
+$tt5 = $tt5 + $row_tabla["e5v"];
+$tt6 = $tt6 + $row_tabla["e6v"];
+$tt7 = $tt7 + $row_tabla["e7v"];
+$tt8 = $tt8 + $row_tabla["e8v"];
+
+$ttt = $tt1 + $tt2 + $tt3 + $tt4 + $tt5 + $tt6 + $tt7 + $tt8;
+
+$ttp1 = ( $tt1 / $ttt ) * 100;
+$ttp2 = ( $tt2 / $ttt ) * 100;
+$ttp3 = ( $tt3 / $ttt ) * 100;
+$ttp4 = ( $tt4 / $ttt ) * 100;
+$ttp5 = ( $tt5 / $ttt ) * 100;
+$ttp6 = ( $tt6 / $ttt ) * 100;
+$ttp7 = ( $tt7 / $ttt ) * 100;
+$ttp8 = ( $tt8 / $ttt ) * 100;
+
+$tttp = $ttp1 + $ttp2 + $ttp3 + $ttp4 + $ttp5 + $ttp6 + $ttp7 + $ttp8;
+
+?>
+
+
+
+<?php } while( $row_tabla = $tabla->fetch_assoc() ); ?>    
+
+    <tr>
+      <td>&nbsp;</td>
+      <td>&nbsp;</td>
+      <td class="td_totales" align="center"><?php echo number_format($tt1, 0);?></td>
+      <td class="td_totales" align="center"><?php echo number_format($te1s, 0)."";?></td>      
+      <td class="td_totales" align="center"><?php echo number_format($tt2, 0);?></td>
+      <td class="td_totales" align="center"><?php echo number_format($te2s, 0)."";?></td>            
+      <td class="td_totales" align="center"><?php echo number_format($tt3, 0);?></td>
+      <td class="td_totales" align="center"><?php echo number_format($te3s, 0)."";?></td>            
+      <td class="td_totales" align="center"><?php echo number_format($tt4, 0);?></td>
+      <td class="td_totales" align="center"><?php echo number_format($te4s, 0)."";?></td>            
+      <td class="td_totales" align="center"><?php echo number_format($tt5, 0);?></td>
+      <td class="td_totales" align="center"><?php echo number_format($te5s, 0)."";?></td>            
+      <td class="td_totales" align="center"><?php echo number_format($tt6, 0);?></td>
+      <td class="td_totales" align="center"><?php echo number_format($te6s, 0)."";?></td>            
+      <td class="td_totales" align="center"><?php echo number_format($tt7, 0);?></td>
+      <td class="td_totales" align="center"><?php echo number_format($te7s, 0)."";?></td>                  
+      <td class="td_totales" align="center"><?php echo number_format($tt8, 0);?></td>
+      <td class="td_totales" align="center"><?php echo number_format($te8s, 0)."";?></td>                  
+
+      <?php
+    $ttvt = $te1s + $te2s + $te3s + $te4s + $te5s + $te6s + $te7s + $te8s;
+      ?>
+
+      <td class="td_totales" align="center"><?php echo number_format($ttt, 0);?></td>
+      <td class="td_totales" align="center"><?php echo number_format($ttvt, 0)."";?></td>      
+    </tr>
+  </tbody>
+</table>  
+</div>  
+
+<!-- ****************************************** -->
+
+<div style="height:20px; clear:both"></div>
+
+<div class="row">
+    <div class="col text-center">
+    </div>  
+</div>
+
+<div style="height:20px; clear:both"></div>
+
+
+                    </div>    
+
+
+                </div>
+            </main>
+        </div>
+    </div>
+
+<?php include("footer.php");?>
+
+    <!-- Enlace a JavaScript de Bootstrap 5 y dependencias -->
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js" integrity="sha384-oBqDVmMz9ATKxIep9tiCxS/Z9fNfEXiDAYTujMAeBAsjFuCZSmKbSSUnQlmh/jp3" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.min.js" integrity="sha384-cuYeSxntonz0PPNlHhBs68uyIAVpIIOZZ5JqeqvYYIcEL727kskC66kF92t6Xl2V" crossorigin="anonymous"></script>
+    <script src="app.js"></script>
+</body>
+</html>

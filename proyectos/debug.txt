@@ -1,0 +1,21 @@
+
+SELECT 
+  `proyectos`.`id`,
+  `proyectos`.`nombre`,
+  `sectores`.`sector_descripcion`,
+  `etapas`.`etapas_descripcion`,
+  `procesos`.`procesos_descripcion`,
+  `proyectos`.`finicio`,
+  `proyectos`.`ftermino`,
+  `proyectos`.`unidad_responsable`,
+  `proyectos`.`lat`,
+  `proyectos`.`lng`,
+  `sectores`.`sector_id`,
+  `sectores`.`sector_color`
+FROM
+  `proyectos`
+  LEFT OUTER JOIN `sectores` ON (`proyectos`.`sector` = `sectores`.`sector_id`)
+  LEFT OUTER JOIN `etapas` ON (`proyectos`.`etapa` = `etapas`.`etapas_id`)
+  LEFT OUTER JOIN `procesos` ON (`proyectos`.`proceso` = `procesos`.`procesos_id`) 
+
+ 

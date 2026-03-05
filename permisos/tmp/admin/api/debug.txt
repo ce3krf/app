@@ -1,0 +1,1 @@
+\ndelete from indica where indica_id = '258' and indica_iniciastiva = '83' 

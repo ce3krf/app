@@ -1,0 +1,2 @@
+
+SELECT * from  patentes where estado=1 and latitud IS NOT NULL and longitud IS NOT NULL 

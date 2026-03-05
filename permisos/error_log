@@ -1,0 +1,1 @@
+[04-Feb-2025 10:27:25 America/Santiago] PHP Warning:  mysqli::__construct(): (HY000/1045): Access denied for user 'IyzzkNSawEyGKZzJavbw'@'localhost' (using password: YES) in /home6/cpl107299/public_html/proyectos/conf/db.php on line 28

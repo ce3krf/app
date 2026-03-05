@@ -1,0 +1,18 @@
+SELECT  proyectos.*,
+`actividades`.`id`,
+`actividades`.`proyecto`,
+`actividades`.`actividad`,
+`actividades`.`ano`,
+`actividades`.`monto`,
+`actividades`.`finaciamiento`,
+`actividades`.`estado`,
+`actividades`.`creado`,
+`actividades`.`actualizado`,
+`actividades`.`monto_final`,
+`actividades`.`observaciones`,
+`actividades`.`adjunto`,
+`tipo`.`tipo`
+FROM
+`actividades`
+RIGHT OUTER JOIN `proyectos` ON (`actividades`.`proyecto` = `proyectos`.`id`)
+LEFT OUTER JOIN `tipo` ON (`proyectos`.`tipo` = `tipo`.`codigo`)
