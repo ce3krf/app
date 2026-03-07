@@ -46,14 +46,15 @@ if (isset($_GET["task"]) && $_GET["task"] == "list") {
     $usuarios = [];
     while ($row = $result->fetch_assoc()) {
         $usuarios[] = [
-            'usuarios_id'       => $row['usuarios_id'],
-            'usuarios_userid'   => $row['usuarios_userid'],
-            'usuarios_nombre'   => $row['usuarios_nombre'],
-            'usuarios_email'    => $row['usuarios_email'],
-            'usuarios_profile'  => $row['usuarios_profile'],
-            'last_login'        => $row['last_login'],
-            'usuarios_password' => $row['usuarios_password'],
-            'usuarios_updated'  => $row['usuarios_updated']
+            'usuarios_id'               => $row['usuarios_id'],
+            'usuarios_userid'           => $row['usuarios_userid'],
+            'usuarios_nombre'           => $row['usuarios_nombre'],
+            'usuarios_email'            => $row['usuarios_email'],
+            'usuarios_profile'          => $row['usuarios_profile'],
+            'last_login'                => $row['last_login'],
+            'usuarios_password'         => $row['usuarios_password'],
+            'usuarios_updated'          => $row['usuarios_updated'],
+            'usuarios_cambiarpassword'  => $row['usuarios_cambiarpassword']
         ];
     }
     
@@ -230,20 +231,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['task'])) {
                     $nueva_foto = $nombre_archivo;
                 }
                 
+                // Leer el flag de cambio de contraseña obligatorio (solo admin lo envía)
+                $forzar_cambio_password = isset($_POST['usuarios_cambiarpassword']) ? 1 : 0;
+
                 // Ejecutar INSERT o UPDATE
                 if ($es_nuevo_usuario) {
-                    $sql  = "INSERT INTO usuarios (usuarios_userid, usuarios_password, usuarios_nombre, usuarios_email, usuarios_profile, usuarios_status, usuarios_foto, usuarios_updated) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())";
+                    $sql  = "INSERT INTO usuarios (usuarios_userid, usuarios_password, usuarios_nombre, usuarios_email, usuarios_profile, usuarios_status, usuarios_foto, usuarios_cambiarpassword, usuarios_updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())";
                     $stmt = $db->prepare($sql);
-                    $stmt->bind_param("ssssssi", $usuarios_userid, $password_hash, $usuarios_nombre, $usuarios_email, $usuarios_profile, $usuarios_status, $nueva_foto);
+                    $stmt->bind_param("ssssssii", $usuarios_userid, $password_hash, $usuarios_nombre, $usuarios_email, $usuarios_profile, $usuarios_status, $nueva_foto, $forzar_cambio_password);
                 } else {
                     if ($cambiar_password) {
-                        $sql  = "UPDATE usuarios SET usuarios_userid=?, usuarios_password=?, usuarios_nombre=?, usuarios_email=?, usuarios_profile=?, usuarios_status=?, usuarios_foto=?, usuarios_cambiarpassword=0, usuarios_updated=NOW() WHERE usuarios_id=?";
+                        $sql  = "UPDATE usuarios SET usuarios_userid=?, usuarios_password=?, usuarios_nombre=?, usuarios_email=?, usuarios_profile=?, usuarios_status=?, usuarios_foto=?, usuarios_cambiarpassword=?, usuarios_updated=NOW() WHERE usuarios_id=?";
                         $stmt = $db->prepare($sql);
-                        $stmt->bind_param("sssssisi", $usuarios_userid, $password_hash, $usuarios_nombre, $usuarios_email, $usuarios_profile, $usuarios_status, $nueva_foto, $id);
+                        $stmt->bind_param("sssssisii", $usuarios_userid, $password_hash, $usuarios_nombre, $usuarios_email, $usuarios_profile, $usuarios_status, $nueva_foto, $forzar_cambio_password, $id);
                     } else {
-                        $sql  = "UPDATE usuarios SET usuarios_userid=?, usuarios_nombre=?, usuarios_email=?, usuarios_profile=?, usuarios_status=?, usuarios_foto=?, usuarios_cambiarpassword=0, usuarios_updated=NOW() WHERE usuarios_id=?";
+                        $sql  = "UPDATE usuarios SET usuarios_userid=?, usuarios_nombre=?, usuarios_email=?, usuarios_profile=?, usuarios_status=?, usuarios_foto=?, usuarios_cambiarpassword=?, usuarios_updated=NOW() WHERE usuarios_id=?";
                         $stmt = $db->prepare($sql);
-                        $stmt->bind_param("ssssisi", $usuarios_userid, $usuarios_nombre, $usuarios_email, $usuarios_profile, $usuarios_status, $nueva_foto, $id);
+                        $stmt->bind_param("sssssiii", $usuarios_userid, $usuarios_nombre, $usuarios_email, $usuarios_profile, $usuarios_status, $nueva_foto, $forzar_cambio_password, $id);
                     }
                 }
                 

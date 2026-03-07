@@ -49,16 +49,17 @@ if (!$es_nuevo_usuario) {
 } else {
     // Valores por defecto vacíos para nuevo usuario
     $row = [
-        'usuarios_id'       => 0,
-        'usuarios_userid'   => '',
-        'usuarios_password' => '',
-        'usuarios_nombre'   => '',
-        'usuarios_email'    => '',
-        'usuarios_profile'  => 'INVITADO',
-        'usuarios_status'   => 1,
-        'usuarios_updated'  => '',
-        'last_login'        => '',
-        'usuarios_foto'     => ''
+        'usuarios_id'                => 0,
+        'usuarios_userid'            => '',
+        'usuarios_password'          => '',
+        'usuarios_nombre'            => '',
+        'usuarios_email'             => '',
+        'usuarios_profile'           => 'INVITADO',
+        'usuarios_status'            => 1,
+        'usuarios_updated'           => '',
+        'last_login'                 => '',
+        'usuarios_foto'              => '',
+        'usuarios_cambiarpassword'   => 1
     ];
 }
 
@@ -282,6 +283,25 @@ $imagen_src .= "?t=" . time();
                                 </div>
                             </div>
                             <?php endif; ?>
+
+                            <?php if ($es_admin): ?>
+                            <!-- Obligar cambio de contraseña: solo para admin -->
+                            <div class="form-check mt-3">
+                                <input class="form-check-input" type="checkbox" id="usuarios_cambiarpassword" name="usuarios_cambiarpassword" value="1"
+                                       <?php echo (!empty($row['usuarios_cambiarpassword']) && $row['usuarios_cambiarpassword'] == 1) ? 'checked' : ''; ?>>
+                                <label class="form-check-label" for="usuarios_cambiarpassword">
+                                    <i class="fa-solid fa-triangle-exclamation text-warning me-1"></i>
+                                    Obligar al usuario a cambiar su contraseña en el próximo acceso
+                                </label>
+                            </div>
+                            <?php elseif ($es_restringido && !empty($row['usuarios_cambiarpassword']) && $row['usuarios_cambiarpassword'] == 1): ?>
+                            <!-- Aviso al usuario restringido si debe cambiar contraseña -->
+                            <div class="alert alert-warning py-2 mt-3 small mb-0">
+                                <i class="fa-solid fa-triangle-exclamation me-1"></i>
+                                Su administrador ha solicitado que cambie su contraseña.
+                            </div>
+                            <?php endif; ?>
+
                         </div>
 
                         <!-- Sección: Metadatos (solo lectura) -->
