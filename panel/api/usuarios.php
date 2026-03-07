@@ -3,13 +3,15 @@
 //error_reporting(E_ALL);
 //ini_set('display_errors', 1);
 
+@session_start();
+
 include("../../conf/db.php");		
 include('../functions.php');
 
 $sql = "set names utf8";
 $result = $db->query($sql);    
 
-// ConfiguraciÃ³n para manejo de archivos
+// Configuración para manejo de archivos
 $upload_dir = "../profiles/";
 $allowed_types = ['image/jpeg', 'image/png', 'image/gif'];
 $max_file_size = 2 * 1024 * 1024; // 2MB
@@ -24,20 +26,34 @@ if (!file_exists($upload_dir)) {
 
 // **************************************************************************************
 if (isset($_GET["task"]) && $_GET["task"] == "list") {
-    $sql = "SELECT * FROM usuarios ORDER BY usuarios_nombre";
-    $result = $db->query($sql);
-    
+
+    $perfil = $_SESSION["usuarios_profile"] ?? '';
+    $perfiles_restringidos = ['ÁREA', 'INVITADO'];
+
+    if (in_array($perfil, $perfiles_restringidos)) {
+        // Solo ve su propio registro
+        $id_propio = (int)($_SESSION["net_fulltrust_fas_id"] ?? 0);
+        $sql = "SELECT * FROM usuarios WHERE usuarios_id = ? ORDER BY usuarios_nombre";
+        $stmt = $db->prepare($sql);
+        $stmt->bind_param("i", $id_propio);
+        $stmt->execute();
+        $result = $stmt->get_result();
+    } else {
+        $sql = "SELECT * FROM usuarios ORDER BY usuarios_nombre";
+        $result = $db->query($sql);
+    }
+
     $usuarios = [];
     while ($row = $result->fetch_assoc()) {
         $usuarios[] = [
-            'usuarios_id' => $row['usuarios_id'],
-            'usuarios_userid' => $row['usuarios_userid'],
-            'usuarios_nombre' => $row['usuarios_nombre'],
-            'usuarios_email' => $row['usuarios_email'],
-            'usuarios_profile' => $row['usuarios_profile'],
-            'last_login' => $row['last_login'],
+            'usuarios_id'       => $row['usuarios_id'],
+            'usuarios_userid'   => $row['usuarios_userid'],
+            'usuarios_nombre'   => $row['usuarios_nombre'],
+            'usuarios_email'    => $row['usuarios_email'],
+            'usuarios_profile'  => $row['usuarios_profile'],
+            'last_login'        => $row['last_login'],
             'usuarios_password' => $row['usuarios_password'],
-            'usuarios_updated' => $row['usuarios_updated']
+            'usuarios_updated'  => $row['usuarios_updated']
         ];
     }
     
@@ -100,19 +116,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['task'])) {
                     }
                 }
                 
-                // Preparar datos bÃ¡sicos
-                $usuarios_userid = trim($_POST['usuarios_userid']);
-                $usuarios_nombre = trim($_POST['usuarios_nombre']);
-                $usuarios_email = trim($_POST['usuarios_email']);
+                // Preparar datos básicos
+                $usuarios_userid  = trim($_POST['usuarios_userid']);
+                $usuarios_nombre  = trim($_POST['usuarios_nombre']);
+                $usuarios_email   = trim($_POST['usuarios_email']);
                 $usuarios_profile = $_POST['usuarios_profile'];
-                $usuarios_status = isset($_POST['usuarios_status']) ? (int)$_POST['usuarios_status'] : 1;
+                $usuarios_status  = isset($_POST['usuarios_status']) ? (int)$_POST['usuarios_status'] : 1;
                 
                 // Validar email
                 if (!filter_var($usuarios_email, FILTER_VALIDATE_EMAIL)) {
-                    throw new Exception('Formato de email invÃ¡lido');
+                    throw new Exception('Formato de email inválido');
                 }
                 
-                // Verificar si el userid ya existe (excluyendo el usuario actual en ediciÃ³n)
+                // Verificar si el userid ya existe (excluyendo el usuario actual en edición)
                 $sql = $es_nuevo_usuario ? 
                     "SELECT usuarios_id FROM usuarios WHERE usuarios_userid = ?" : 
                     "SELECT usuarios_id FROM usuarios WHERE usuarios_userid = ? AND usuarios_id != ?";
@@ -127,33 +143,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['task'])) {
                     throw new Exception('El User ID ya existe');
                 }
                 
-                // Manejo de contraseÃ±a con MD5
-                $password_hash = null;
+                // Manejo de contraseña con MD5
+                $password_hash   = null;
                 $cambiar_password = false;
                 
                 if ($es_nuevo_usuario) {
                     if (empty($_POST['usuarios_password'])) {
-                        throw new Exception('La contraseÃ±a es requerida para usuarios nuevos');
+                        throw new Exception('La contraseña es requerida para usuarios nuevos');
                     }
                     if ($_POST['usuarios_password'] !== $_POST['usuarios_password_confirm']) {
-                        throw new Exception('Las contraseÃ±as no coinciden');
+                        throw new Exception('Las contraseñas no coinciden');
                     }
-                    // Cambio principal: usar MD5 en lugar de password_hash
-                    $password_hash = md5($_POST['usuarios_password']);
+                    $password_hash   = md5($_POST['usuarios_password']);
                     $cambiar_password = true;
                 } else {
-                    // Usuario existente - solo cambiar contraseÃ±a si se solicita
+                    // Usuario existente - solo cambiar contraseña si se solicita
                     if (isset($_POST['cambiar_password']) && !empty($_POST['usuarios_password'])) {
                         if ($_POST['usuarios_password'] !== $_POST['usuarios_password_confirm']) {
-                            throw new Exception('Las contraseÃ±as no coinciden');
+                            throw new Exception('Las contraseñas no coinciden');
                         }
-                        // Cambio principal: usar MD5 en lugar de password_hash
-                        $password_hash = md5($_POST['usuarios_password']);
+                        $password_hash   = md5($_POST['usuarios_password']);
                         $cambiar_password = true;
                     }
                 }
                 
-                // Obtener foto actual si es ediciÃ³n
+                // Obtener foto actual si es edición
                 $foto_actual = '';
                 if (!$es_nuevo_usuario) {
                     $sql = "SELECT usuarios_foto FROM usuarios WHERE usuarios_id = ?";
@@ -177,12 +191,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['task'])) {
                     $nueva_foto = ''; // Limpiar el nombre de la foto
                 }
                 
-                // Procesar nueva foto si se subiÃ³
+                // Procesar nueva foto si se subió
                 if (isset($_FILES['usuarios_foto']) && $_FILES['usuarios_foto']['error'] === UPLOAD_ERR_OK) {
                     $file = $_FILES['usuarios_foto'];
                     
                     // Validar tipo de archivo usando finfo
-                    $finfo = finfo_open(FILEINFO_MIME_TYPE);
+                    $finfo     = finfo_open(FILEINFO_MIME_TYPE);
                     $mime_type = finfo_file($finfo, $file['tmp_name']);
                     finfo_close($finfo);
                     
@@ -190,15 +204,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['task'])) {
                         throw new Exception('Tipo de archivo no permitido. Solo se aceptan JPG, PNG y GIF.');
                     }
                     
-                    // Validar tamaÃ±o
+                    // Validar tamaño
                     if ($file['size'] > $max_file_size) {
-                        throw new Exception('El archivo excede el tamaÃ±o mÃ¡ximo de 2MB.');
+                        throw new Exception('El archivo excede el tamaño máximo de 2MB.');
                     }
                     
-                    // Generar nombre Ãºnico para el archivo
-                    $extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+                    // Generar nombre único para el archivo
+                    $extension      = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
                     $nombre_archivo = 'profile_' . ($es_nuevo_usuario ? 'new_' . time() : $id) . '_' . uniqid() . '.' . $extension;
-                    $ruta_archivo = $upload_dir . $nombre_archivo;
+                    $ruta_archivo   = $upload_dir . $nombre_archivo;
                     
                     // Eliminar foto anterior si existe y es diferente
                     if (!empty($foto_actual) && $foto_actual !== $nombre_archivo) {
@@ -218,16 +232,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['task'])) {
                 
                 // Ejecutar INSERT o UPDATE
                 if ($es_nuevo_usuario) {
-                    $sql = "INSERT INTO usuarios (usuarios_userid, usuarios_password, usuarios_nombre, usuarios_email, usuarios_profile, usuarios_status, usuarios_foto, usuarios_updated) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())";
+                    $sql  = "INSERT INTO usuarios (usuarios_userid, usuarios_password, usuarios_nombre, usuarios_email, usuarios_profile, usuarios_status, usuarios_foto, usuarios_updated) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())";
                     $stmt = $db->prepare($sql);
                     $stmt->bind_param("ssssssi", $usuarios_userid, $password_hash, $usuarios_nombre, $usuarios_email, $usuarios_profile, $usuarios_status, $nueva_foto);
                 } else {
                     if ($cambiar_password) {
-                        $sql = "UPDATE usuarios SET usuarios_userid=?, usuarios_password=?, usuarios_nombre=?, usuarios_email=?, usuarios_profile=?, usuarios_status=?, usuarios_foto=?, usuarios_cambiarpassword=0, usuarios_updated=NOW() WHERE usuarios_id=?";
+                        $sql  = "UPDATE usuarios SET usuarios_userid=?, usuarios_password=?, usuarios_nombre=?, usuarios_email=?, usuarios_profile=?, usuarios_status=?, usuarios_foto=?, usuarios_cambiarpassword=0, usuarios_updated=NOW() WHERE usuarios_id=?";
                         $stmt = $db->prepare($sql);
                         $stmt->bind_param("sssssisi", $usuarios_userid, $password_hash, $usuarios_nombre, $usuarios_email, $usuarios_profile, $usuarios_status, $nueva_foto, $id);
                     } else {
-                        $sql = "UPDATE usuarios SET usuarios_userid=?, usuarios_nombre=?, usuarios_email=?, usuarios_profile=?, usuarios_status=?, usuarios_foto=?, usuarios_cambiarpassword=0, usuarios_updated=NOW() WHERE usuarios_id=?";
+                        $sql  = "UPDATE usuarios SET usuarios_userid=?, usuarios_nombre=?, usuarios_email=?, usuarios_profile=?, usuarios_status=?, usuarios_foto=?, usuarios_cambiarpassword=0, usuarios_updated=NOW() WHERE usuarios_id=?";
                         $stmt = $db->prepare($sql);
                         $stmt->bind_param("ssssisi", $usuarios_userid, $usuarios_nombre, $usuarios_email, $usuarios_profile, $usuarios_status, $nueva_foto, $id);
                     }
@@ -239,14 +253,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['task'])) {
                         
                         // Renombrar archivo con el ID real si es usuario nuevo
                         if (!empty($nueva_foto) && strpos($nueva_foto, 'new_') !== false) {
-                            $extension = pathinfo($nueva_foto, PATHINFO_EXTENSION);
-                            $nuevo_nombre = 'profile_' . $id . '_' . time() . '.' . $extension;
+                            $extension      = pathinfo($nueva_foto, PATHINFO_EXTENSION);
+                            $nuevo_nombre   = 'profile_' . $id . '_' . time() . '.' . $extension;
                             $archivo_temporal = $upload_dir . $nueva_foto;
-                            $archivo_final = $upload_dir . $nuevo_nombre;
+                            $archivo_final    = $upload_dir . $nuevo_nombre;
                             
                             if (rename($archivo_temporal, $archivo_final)) {
                                 // Actualizar la base de datos con el nuevo nombre
-                                $sql = "UPDATE usuarios SET usuarios_foto = ? WHERE usuarios_id = ?";
+                                $sql  = "UPDATE usuarios SET usuarios_foto = ? WHERE usuarios_id = ?";
                                 $stmt = $db->prepare($sql);
                                 $stmt->bind_param("si", $nuevo_nombre, $id);
                                 $stmt->execute();
@@ -257,14 +271,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['task'])) {
                     
                     // Manejar las áreas del usuario
                     // Primero eliminar todas las áreas actuales del usuario
-                    $sql_delete = "DELETE FROM usuarios_areas WHERE usuarios_id = ?";
+                    $sql_delete  = "DELETE FROM usuarios_areas WHERE usuarios_id = ?";
                     $stmt_delete = $db->prepare($sql_delete);
                     $stmt_delete->bind_param("i", $id);
                     $stmt_delete->execute();
                     
                     // Insertar las nuevas áreas seleccionadas
                     if (isset($_POST['areas']) && is_array($_POST['areas'])) {
-                        $sql_insert = "INSERT INTO usuarios_areas (usuarios_id, areas_id) VALUES (?, ?)";
+                        $sql_insert  = "INSERT INTO usuarios_areas (usuarios_id, areas_id) VALUES (?, ?)";
                         $stmt_insert = $db->prepare($sql_insert);
                         
                         foreach ($_POST['areas'] as $area_id) {
@@ -278,14 +292,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['task'])) {
                     
                     $response['success'] = true;
                     $response['message'] = $es_nuevo_usuario ? 'Usuario creado correctamente' : 'Usuario actualizado correctamente';
-                    $response['id'] = $id;
+                    $response['id']      = $id;
                 } else {
                     throw new Exception('Error al ejecutar la consulta: ' . $db->error);
                 }
                 break;
 
             default:
-                throw new Exception('Tarea no vÃ¡lida');
+                throw new Exception('Tarea no válida');
         }
         
     } catch (Exception $e) {

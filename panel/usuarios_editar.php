@@ -10,19 +10,25 @@
 //error_reporting(E_ALL);
 //ini_set('display_errors', '1');
 
-
 @session_start();
 include("../conf/db.php");		
 include('functions.php');
 
-
-
 // Verificar si el usuario actual es administrador
 $es_admin = isset($_SESSION['usuarios_profile']) && $_SESSION['usuarios_profile'] === 'ADMINISTRADOR';
 
-// Determinar si es creación o edición
-$id = isset($_GET['usuarios_id']) ? (int)$_GET['usuarios_id'] : 0;
-$es_nuevo_usuario = ($id === 0);
+// Detectar si es perfil restringido (Área o Invitado)
+$perfil_sesion = $_SESSION['usuarios_profile'] ?? '';
+$es_restringido = in_array($perfil_sesion, ['ÁREA', 'INVITADO']);
+
+// Si es perfil restringido, forzar que solo vea su propio usuario
+if ($es_restringido) {
+    $id = (int)($_SESSION['net_fulltrust_fas_id'] ?? 0);
+} else {
+    $id = isset($_GET['usuarios_id']) ? (int)$_GET['usuarios_id'] : 0;
+}
+
+$es_nuevo_usuario = ($id === 0 && !$es_restringido);
 $title = $es_nuevo_usuario ? "Crear nuevo usuario" : "Editar usuario";
 
 // Configurar codificación UTF-8
@@ -43,19 +49,18 @@ if (!$es_nuevo_usuario) {
 } else {
     // Valores por defecto vacíos para nuevo usuario
     $row = [
-        'usuarios_id' => 0,
-        'usuarios_userid' => '',
+        'usuarios_id'       => 0,
+        'usuarios_userid'   => '',
         'usuarios_password' => '',
-        'usuarios_nombre' => '',
-        'usuarios_email' => '',
-        'usuarios_profile' => 'INVITADO',
-        'usuarios_status' => 1,
-        'usuarios_updated' => '',
-        'last_login' => '',
-        'usuarios_foto' => ''
+        'usuarios_nombre'   => '',
+        'usuarios_email'    => '',
+        'usuarios_profile'  => 'INVITADO',
+        'usuarios_status'   => 1,
+        'usuarios_updated'  => '',
+        'last_login'        => '',
+        'usuarios_foto'     => ''
     ];
 }
-
 
 // Obtener todas las áreas disponibles
 $sql_areas = "SELECT * FROM areas ORDER BY area";
@@ -80,8 +85,8 @@ if (!$es_nuevo_usuario) {
 }
 
 // Ruta donde se guardarán las fotos
-$upload_dir = "profiles/";
-$placeholder = "img/profile.png"; // Placeholder de 128x128
+$upload_dir  = "profiles/";
+$placeholder = "img/profile.png";
 
 // Ruta completa para mostrar la imagen
 $imagen_src = !$es_nuevo_usuario && !empty($row['usuarios_foto']) && file_exists($upload_dir . $row['usuarios_foto']) 
@@ -90,7 +95,6 @@ $imagen_src = !$es_nuevo_usuario && !empty($row['usuarios_foto']) && file_exists
 
 // Agregar timestamp para evitar caché
 $imagen_src .= "?t=" . time();
-
 ?>
 
 <!DOCTYPE html>
@@ -100,16 +104,11 @@ $imagen_src .= "?t=" . time();
 <meta name="viewport" content="width=device-width, initial-scale=1">	
 <title><?php echo $row_param["parametros_titulo"];?></title>
 
-
 <script src="js/jquery-3.5.1.min.js"></script>	
 	
 <link rel="icon" type="image/png" href="../favicon.png">
-	
 
-
-	
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
-
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jquery-confirm/3.3.2/jquery-confirm.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-confirm/3.3.2/jquery-confirm.min.js"></script>	
@@ -195,23 +194,37 @@ $imagen_src .= "?t=" . time();
                             <div class="row g-3">
                                 <div class="col-md-6">
                                     <label for="usuarios_userid" class="form-label text-info-emphasis">User ID</label>
-                                    <input type="text" class="form-control" id="usuarios_userid" name="usuarios_userid" value="<?php echo htmlspecialchars($row['usuarios_userid']); ?>" required>
+                                    <input type="text" class="form-control <?php echo $es_restringido ? 'readonly-field' : ''; ?>"
+                                           id="usuarios_userid" name="usuarios_userid"
+                                           value="<?php echo htmlspecialchars($row['usuarios_userid']); ?>"
+                                           <?php echo $es_restringido ? 'readonly' : 'required'; ?>>
                                 </div>
                                 <div class="col-md-6">
                                     <label for="usuarios_nombre" class="form-label text-info-emphasis">Nombre</label>
-                                    <input type="text" class="form-control" id="usuarios_nombre" name="usuarios_nombre" value="<?php echo htmlspecialchars($row['usuarios_nombre']); ?>" required>
+                                    <input type="text" class="form-control <?php echo $es_restringido ? 'readonly-field' : ''; ?>"
+                                           id="usuarios_nombre" name="usuarios_nombre"
+                                           value="<?php echo htmlspecialchars($row['usuarios_nombre']); ?>"
+                                           <?php echo $es_restringido ? 'readonly' : 'required'; ?>>
                                 </div>
                                 <div class="col-md-6">
                                     <label for="usuarios_email" class="form-label text-info-emphasis">Email</label>
-                                    <input type="email" class="form-control" id="usuarios_email" name="usuarios_email" value="<?php echo htmlspecialchars($row['usuarios_email']); ?>" required>
+                                    <input type="email" class="form-control <?php echo $es_restringido ? 'readonly-field' : ''; ?>"
+                                           id="usuarios_email" name="usuarios_email"
+                                           value="<?php echo htmlspecialchars($row['usuarios_email']); ?>"
+                                           <?php echo $es_restringido ? 'readonly' : 'required'; ?>>
                                 </div>
                                 <div class="col-md-3">
                                     <label for="usuarios_profile" class="form-label text-info-emphasis">Perfil</label>
+                                    <?php if ($es_restringido): ?>
+                                    <input type="text" class="form-control readonly-field"
+                                           value="<?php echo htmlspecialchars($row['usuarios_profile']); ?>" readonly>
+                                    <?php else: ?>
                                     <select class="form-control" id="usuarios_profile" name="usuarios_profile" required>
                                         <option value="INVITADO" <?php echo $row['usuarios_profile'] === 'INVITADO' ? 'selected' : ''; ?>>Invitado</option>
                                         <option value="ÁREA" <?php echo $row['usuarios_profile'] === 'ÁREA' ? 'selected' : ''; ?>>Área</option>
                                         <option value="ADMINISTRADOR" <?php echo $row['usuarios_profile'] === 'ADMINISTRADOR' ? 'selected' : ''; ?>>Administrador</option>
                                     </select>
+                                    <?php endif; ?>
                                 </div>
                                 <?php if ($es_admin): ?>
                                 <div class="col-md-3">
@@ -307,33 +320,45 @@ $imagen_src .= "?t=" . time();
                             </div>
                         </div>
 
-                        <!-- Sección: Áreas -->
+                        <!-- Sección: Áreas asignadas -->
                         <div class="section-card">
                             <div class="section-title"><i class="fa-solid fa-sitemap me-1"></i> Áreas asignadas</div>
                             <small class="text-muted d-block mb-2">Aplica solo a usuarios con perfil Área</small>
+
                             <?php if (!empty($areas_disponibles)): ?>
-                            <div class="mb-2 d-flex gap-2">
-                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="$('.area-checkbox').prop('checked', true); return false;">
-                                    <i class="fa-solid fa-check-double"></i> Todas
-                                </button>
-                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="$('.area-checkbox').prop('checked', false); return false;">
-                                    <i class="fa-solid fa-xmark"></i> Ninguna
-                                </button>
-                            </div>
-                            <div class="border rounded p-2" style="max-height: 220px; overflow-y: auto; background-color: #f8f9fa;">
-                                <?php foreach ($areas_disponibles as $area): ?>
-                                <div class="form-check mb-1">
-                                    <input class="form-check-input area-checkbox" type="checkbox"
-                                           name="areas[]"
-                                           value="<?php echo $area['id']; ?>"
-                                           id="area_<?php echo $area['id']; ?>"
-                                           <?php echo in_array($area['id'], $areas_usuario) ? 'checked' : ''; ?>>
-                                    <label class="form-check-label small" for="area_<?php echo $area['id']; ?>">
-                                        <?php echo htmlspecialchars($area['area']); ?>
-                                    </label>
+
+                                <?php if (!$es_restringido): ?>
+                                <!-- Botones Todas / Ninguna: solo para no restringidos -->
+                                <div class="mb-2 d-flex gap-2">
+                                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="$('.area-checkbox').prop('checked', true); return false;">
+                                        <i class="fa-solid fa-check-double"></i> Todas
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="$('.area-checkbox').prop('checked', false); return false;">
+                                        <i class="fa-solid fa-xmark"></i> Ninguna
+                                    </button>
                                 </div>
-                                <?php endforeach; ?>
-                            </div>
+                                <?php endif; ?>
+
+                                <div class="border rounded p-2" style="max-height: 220px; overflow-y: auto; background-color: #f8f9fa;">
+                                    <?php foreach ($areas_disponibles as $area): ?>
+                                    <div class="form-check mb-1">
+                                        <input class="form-check-input area-checkbox" type="checkbox"
+                                               name="areas[]"
+                                               value="<?php echo $area['id']; ?>"
+                                               id="area_<?php echo $area['id']; ?>"
+                                               <?php echo in_array($area['id'], $areas_usuario) ? 'checked' : ''; ?>
+                                               <?php echo $es_restringido ? 'disabled' : ''; ?>>
+                                        <label class="form-check-label small" for="area_<?php echo $area['id']; ?>">
+                                            <?php echo htmlspecialchars($area['area']); ?>
+                                        </label>
+                                    </div>
+                                    <?php endforeach; ?>
+                                </div>
+
+                                <?php if ($es_restringido): ?>
+                                <small class="text-muted mt-1 d-block"><i class="fa-solid fa-lock me-1"></i>Solo lectura</small>
+                                <?php endif; ?>
+
                             <?php else: ?>
                             <div class="alert alert-warning py-2 small">No hay áreas disponibles</div>
                             <?php endif; ?>
@@ -350,7 +375,7 @@ $imagen_src .= "?t=" . time();
                         <i class="fa-solid fa-trash me-1"></i> Eliminar usuario
                     </button>
                     <?php endif; ?>
-                    <?php if ($es_admin): ?>
+                    <?php if ($es_admin || $es_restringido): ?>
                     <button type="button" class="btn btn-primary" id="guardarCambios">
                         <i class="fa-solid fa-floppy-disk me-1"></i>
                         <?php echo $es_nuevo_usuario ? 'Crear usuario' : 'Guardar cambios'; ?>
@@ -458,12 +483,11 @@ $imagen_src .= "?t=" . time();
                                             content: '<?php echo $es_nuevo_usuario ? 'Usuario creado' : 'Cambios guardados'; ?> con éxito',
                                             type: 'green',
                                             onClose: function() {
-                                                // Redirigir según si es nuevo usuario o edición
                                                 var redirectUrl = '<?php echo $es_nuevo_usuario ? "" : "usuarios_editar.php?usuarios_id=" . $id; ?>';
                                                 if ('<?php echo $es_nuevo_usuario ? "true" : "false"; ?>' === 'true' && res.id) {
                                                     redirectUrl = 'usuarios_editar.php?usuarios_id=' + res.id;
                                                 }
-                                                window.location.href = redirectUrl || 'usuarios.php'; // Fallback a lista si no hay ID
+                                                window.location.href = redirectUrl || 'usuarios.php';
                                             }
                                         });
                                     } else {
@@ -552,20 +576,12 @@ $imagen_src .= "?t=" . time();
         <?php endif; ?>
     });
 
-
-
-
-// Agregar este código al JavaScript del formulario en usuarios_editar.php
-
 // Manejar el checkbox de eliminar foto
 $('#eliminar_foto').change(function() {
     if (this.checked) {
-        // Mostrar placeholder cuando se marca eliminar
         $('#profilePreview').attr('src', '<?php echo $placeholder; ?>?t=' + Date.now());
-        // Limpiar el input de archivo
         $('#usuarios_foto').val('');
     } else {
-        // Restaurar imagen original si se desmarca
         $('#profilePreview').attr('src', '<?php echo $imagen_src; ?>');
     }
 });
@@ -574,22 +590,19 @@ $('#eliminar_foto').change(function() {
 $('#usuarios_foto').change(function(e) {
     const file = e.target.files[0];
     if (file) {
-        // Desmarcar el checkbox de eliminar si se selecciona nueva foto
         $('#eliminar_foto').prop('checked', false);
         
-        // Validar tamaño de archivo
-        const maxSize = 2 * 1024 * 1024; // 2MB
+        const maxSize = 2 * 1024 * 1024;
         if (file.size > maxSize) {
             $.alert({
                 title: 'Error',
                 content: 'La foto de perfil no debe exceder los 2MB',
                 type: 'red'
             });
-            $(this).val(''); // Limpiar el input
+            $(this).val('');
             return;
         }
         
-        // Validar tipo de archivo
         const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
         const fileType = file.type.toLowerCase();
         if (!allowedTypes.includes(fileType)) {
@@ -598,18 +611,16 @@ $('#usuarios_foto').change(function(e) {
                 content: 'Solo se permiten archivos JPG, PNG y GIF',
                 type: 'red'
             });
-            $(this).val(''); // Limpiar el input
+            $(this).val('');
             return;
         }
         
-        // Mostrar vista previa
         const reader = new FileReader();
         reader.onload = function(e) {
             $('#profilePreview').attr('src', e.target.result);
         }
         reader.readAsDataURL(file);
     } else {
-        // Si no hay archivo, verificar el estado del checkbox
         if ($('#eliminar_foto').is(':checked')) {
             $('#profilePreview').attr('src', '<?php echo $placeholder; ?>?t=' + Date.now());
         } else {
@@ -618,16 +629,7 @@ $('#usuarios_foto').change(function(e) {
     }
 });
 
-
-
     </script>    
-
-
-
-        </div>
-    </div>
-
-
 
 <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.min.js"></script>

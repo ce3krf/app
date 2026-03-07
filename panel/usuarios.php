@@ -9,6 +9,10 @@
 @session_start();
 include("../conf/db.php");		
 include('functions.php');
+
+$perfil = $_SESSION["usuarios_profile"] ?? '';
+$perfiles_restringidos = ['Area', 'Invitado'];
+$puede_crear = !in_array($perfil, $perfiles_restringidos);
 ?>
 
 <!DOCTYPE html>
@@ -100,13 +104,14 @@ function mix(data, type, dataToSet) {
                     <h5>USUARIOS</h5>
                 </div>
                 <div class="col text-end">
+                    <?php if ($puede_crear): ?>
                     <button
-  type="button"
-  class="btn btn-primary"
-  onclick="window.location.href='usuarios_editar.php?usuarios_id=0'">
-  <i class="fa-solid fa-plus"></i>&nbsp;Nuevo usuario
-</button>
-
+                        type="button"
+                        class="btn btn-primary"
+                        onclick="window.location.href='usuarios_editar.php?usuarios_id=0'">
+                        <i class="fa-solid fa-plus"></i>&nbsp;Nuevo usuario
+                    </button>
+                    <?php endif; ?>
                 </div>                        
             </div>
 
