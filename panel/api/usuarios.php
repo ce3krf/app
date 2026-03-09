@@ -238,7 +238,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['task'])) {
                 if ($es_nuevo_usuario) {
                     $sql  = "INSERT INTO usuarios (usuarios_userid, usuarios_password, usuarios_nombre, usuarios_email, usuarios_profile, usuarios_status, usuarios_foto, usuarios_cambiarpassword, usuarios_updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())";
                     $stmt = $db->prepare($sql);
-                    $stmt->bind_param("ssssssii", $usuarios_userid, $password_hash, $usuarios_nombre, $usuarios_email, $usuarios_profile, $usuarios_status, $nueva_foto, $forzar_cambio_password);
+                    $stmt->bind_param("sssssisi", $usuarios_userid, $password_hash, $usuarios_nombre, $usuarios_email, $usuarios_profile, $usuarios_status, $nueva_foto, $forzar_cambio_password);
                 } else {
                     if ($cambiar_password) {
                         $sql  = "UPDATE usuarios SET usuarios_userid=?, usuarios_password=?, usuarios_nombre=?, usuarios_email=?, usuarios_profile=?, usuarios_status=?, usuarios_foto=?, usuarios_cambiarpassword=?, usuarios_updated=NOW() WHERE usuarios_id=?";
@@ -247,7 +247,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['task'])) {
                     } else {
                         $sql  = "UPDATE usuarios SET usuarios_userid=?, usuarios_nombre=?, usuarios_email=?, usuarios_profile=?, usuarios_status=?, usuarios_foto=?, usuarios_cambiarpassword=?, usuarios_updated=NOW() WHERE usuarios_id=?";
                         $stmt = $db->prepare($sql);
-                        $stmt->bind_param("sssssiii", $usuarios_userid, $usuarios_nombre, $usuarios_email, $usuarios_profile, $usuarios_status, $nueva_foto, $forzar_cambio_password, $id);
+                        $stmt->bind_param("ssssisii", $usuarios_userid, $usuarios_nombre, $usuarios_email, $usuarios_profile, $usuarios_status, $nueva_foto, $forzar_cambio_password, $id);
                     }
                 }
                 

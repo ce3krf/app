@@ -3,7 +3,7 @@
 // Autor: Marcelo Jiménez
 // Fulltrust Software
 // https://www.fulltrust.net
-// Fecha última actualización: 2026-02-21 10:50:59
+// Fecha última actualización: 2026-03-09 10:46:40
 // ************************************************************
 ?>
 <?php
@@ -416,6 +416,7 @@ function generatePDF() {
  <div class="form-group">
    <label for="nombre">Nombre de la iniciativa</label>
    <input type="text" class="form-control" id="nombre" name="nombre"  value="<?php echo $row["nombre"];?>">
+   <small class="text-muted">Ingrese el nombre completo y descriptivo de la iniciativa o proyecto.</small>
  </div>
 
 </div>  
@@ -430,6 +431,7 @@ function generatePDF() {
  <div class="form-group">
   <label for="descripcion">Descripción de la iniciativa</label>
   <textarea class="form-control" id="descripcion" name="descripcion" rows="5"><?php echo $row["descripcion"];?></textarea>
+  <small class="text-muted">Describa brevemente los objetivos, alcance y características principales de la iniciativa.</small>
  </div>
 
 </div>  
@@ -462,6 +464,7 @@ function generatePDF() {
      <option <?php if( $row_instrumentos["instrumentos_id"] == $row["instrumento"]) {echo " selected ";}?> value="<?php echo $row_instrumentos["instrumentos_id"];?>"><?php echo $row_instrumentos["instrumentos_descripcion"];?></option>
      <?php } while ( $row_instrumentos = $instrumentos->fetch_assoc() );?>
  </select>
+ <small class="text-muted">Seleccione el instrumento de financiamiento o gestión asociado a esta iniciativa.</small>
 
  </div>
 
@@ -482,6 +485,7 @@ function generatePDF() {
      <option <?php if( $row_sectores["sector_id"] == $row["sector"]) {echo " selected ";}?> value="<?php echo $row_sectores["sector_id"];?>"><?php echo $row_sectores["sector_descripcion"];?></option>
      <?php } while ( $row_sectores = $sectores->fetch_assoc() );?>
  </select>
+ <small class="text-muted">Sector productivo o de servicios al que pertenece esta iniciativa.</small>
 
  </div>
 
@@ -497,6 +501,7 @@ function generatePDF() {
      <option <?php if( $row_subsectores["subsector_id"] == $row["subsector"]) {echo " selected ";}?> value="<?php echo $row_subsectores["subsector_id"];?>"><?php echo $row_subsectores["subsector_descripcion"];?></option>
      <?php } while ( $row_subsectores = $subsectores->fetch_assoc() );?>
  </select>
+ <small class="text-muted">Subsector específico dentro del sector seleccionado.</small>
 
  </div>
 
@@ -512,6 +517,7 @@ function generatePDF() {
  <div class="form-group">
    <label for="codigo_bip">CODIGO BIP</label>
   <input type="text" class="form-control" id="codigo_bip" name="codigo_bip" value="<?php echo $row["codigo_bip"]; ?>" placeholder="Ej: 12345678-0">
+  <small class="text-muted">Código del Banco Integrado de Proyectos (BIP) asignado por el MDSF. Ej: 12345678-0.</small>
  </div>
 
 </div>
@@ -526,6 +532,7 @@ function generatePDF() {
     <option <?php if( $row_tipo["id"] == $row["tipo"]) {echo " selected ";}?> value="<?php echo $row_tipo["id"];?>"><?php echo $row_tipo["tipo"];?></option>
     <?php } while ( $row_tipo = $tipo->fetch_assoc() );?>
   </select>
+  <small class="text-muted">Tipo o categoría de la iniciativa según su naturaleza.</small>
 
  </div>
 
@@ -552,6 +559,7 @@ function generatePDF() {
  <div class="form-group">
   <label for="p_diseno">Diseño M$</label>
   <input type="text" class="form-control" id="p_diseno" name="p_diseno" value="<?php echo number_format($row["p_diseno"], 2, ',', '.'); ?>">
+  <small class="text-muted">Monto presupuestado para la etapa de diseño, expresado en miles de pesos.</small>
  </div>
 
 </div>  
@@ -560,6 +568,7 @@ function generatePDF() {
  <div class="form-group">
   <label for="p_ejecucion">Ejecución M$</label>
   <input type="text" class="form-control" id="p_ejecucion" name="p_ejecucion" value="<?php echo number_format($row["p_ejecucion"], 2, ',', '.'); ?>">
+  <small class="text-muted">Monto presupuestado para la etapa de ejecución, expresado en miles de pesos.</small>
  </div>
 
 </div>  
@@ -591,6 +600,7 @@ function generatePDF() {
     <option <?php if( $row_eatapas["etapas_id"] == $row["etapa"]) {echo " selected ";}?> value="<?php echo $row_eatapas["etapas_id"];?>"><?php echo $row_eatapas["etapas_descripcion"];?></option>
     <?php } while ( $row_eatapas = $etapas->fetch_assoc() );?>
   </select>
+  <small class="text-muted">Etapa de desarrollo en que se encuentra actualmente la iniciativa.</small>
 
  </div>
 
@@ -606,6 +616,7 @@ function generatePDF() {
     <option <?php if( $row_procesos["procesos_id"] == $row["proceso"]) {echo " selected ";}?> value="<?php echo $row_procesos["procesos_id"];?>"><?php echo $row_procesos["procesos_descripcion"];?></option>
     <?php } while ( $row_procesos = $procesos->fetch_assoc() );?>
   </select>
+  <small class="text-muted">Proceso administrativo o técnico actualmente en curso para esta iniciativa.</small>
 
  </div>
 
@@ -620,6 +631,7 @@ function generatePDF() {
  <div class="form-group">
   <label for="finicio">INICIO</label>
   <input type="date" class="form-control" id="finicio" name="finicio" value="<?php echo $row["finicio"]; ?>">
+  <small class="text-muted">Fecha de inicio programada para la ejecución de la iniciativa.</small>
  </div>
 
 </div>  
@@ -628,6 +640,7 @@ function generatePDF() {
  <div class="form-group">
   <label for="ftermino">TÉRMINO</label>
   <input type="date" class="form-control" id="ftermino" name="ftermino" value="<?php echo $row["ftermino"]; ?>">
+  <small class="text-muted">Fecha estimada de término o finalización de la iniciativa.</small>
  </div>
 
 </div>  
@@ -653,6 +666,7 @@ function generatePDF() {
  <div class="form-group">
   <label for="fuente">FUENTE</label>
   <input type="text" class="form-control" id="fuente" name="fuente" value="<?php echo $row["fuente"]; ?>">
+  <small class="text-muted">Fuente de financiamiento de la iniciativa (ej: FNDR, Sectorial, Municipal, etc.).</small>
  </div>
 
 </div>  
@@ -680,11 +694,15 @@ function generatePDF() {
     <option <?php if( $row_areas["id"] == $row["unidad_responsable_id"]) {echo " selected ";}?> value="<?php echo $row_areas["id"];?>"><?php echo $row_areas["area"];?></option>
     <?php } while ( $row_areas = $areas->fetch_assoc() );?>
   </select>
+  <small class="text-muted">Unidad o área responsable de la ejecución y seguimiento de esta iniciativa.</small>
  </div>
 
 </div>  
 </div>
 <!----------------------> 
+
+
+
 
 <!----------------------> 
 <div class="row">
@@ -693,6 +711,7 @@ function generatePDF() {
  <div class="form-group">
   <label for="instituciones_vinculadas">INSTITUCIONES VINCULADAS</label>
   <input type="text" class="form-control" id="instituciones_vinculadas" name="instituciones_vinculadas" value="<?php echo $row["instituciones_vinculadas"]; ?>">
+  <small class="text-muted">Nombre de otras instituciones o entidades relacionadas con esta iniciativa, separadas por coma.</small>
  </div>
 
 </div>  
@@ -735,6 +754,7 @@ function generatePDF() {
  <div class="form-group">
   <label for="avance_financiero">% AVANCE FINANCIERO</label>
   <input type="text" class="form-control" id="avance_financiero" name="avance_financiero" value="<?php echo $row['avance_financiero']; ?>" readonly>
+  <small class="text-muted">Calculado automáticamente en base al monto de actividades completadas sobre el total.</small>
  </div>
 
 </div>  
@@ -743,6 +763,7 @@ function generatePDF() {
  <div class="form-group">
   <label for="avance_actividades">% AVANCE ACTIVIDADES</label>
   <input type="text" class="form-control" id="avance_actividades" name="avance_actividades" value="<?php echo $row['avance_actividades']; ?>" readonly>
+  <small class="text-muted">Calculado automáticamente en base al número de actividades completadas sobre el total.</small>
  </div>
 
 </div>  
@@ -770,12 +791,14 @@ function generatePDF() {
     <div class="form-group">
       <label for="lat">LATITUD</label>
       <input type="text" class="form-control" id="lat" name="lat" value="<?php echo $row['lat'];?>">
+      <small class="text-muted">Coordenada de latitud de la ubicación del proyecto. Ej: -33.4569.</small>
     </div>
   </div>
   <div class="col-6">
     <div class="form-group">
       <label for="lng">LONGITUD</label>
       <input type="text" class="form-control" id="lng" name="lng" value="<?php echo $row['lng'];?>">
+      <small class="text-muted">Coordenada de longitud de la ubicación del proyecto. Ej: -70.6483.</small>
     </div>
   </div>
 </div>

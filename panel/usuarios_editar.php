@@ -199,6 +199,7 @@ $imagen_src .= "?t=" . time();
                                            id="usuarios_userid" name="usuarios_userid"
                                            value="<?php echo htmlspecialchars($row['usuarios_userid']); ?>"
                                            <?php echo $es_restringido ? 'readonly' : 'required'; ?>>
+                                    <small class="text-muted">Nombre de usuario único para iniciar sesión en el sistema.</small>
                                 </div>
                                 <div class="col-md-6">
                                     <label for="usuarios_nombre" class="form-label text-info-emphasis">Nombre</label>
@@ -206,6 +207,7 @@ $imagen_src .= "?t=" . time();
                                            id="usuarios_nombre" name="usuarios_nombre"
                                            value="<?php echo htmlspecialchars($row['usuarios_nombre']); ?>"
                                            <?php echo $es_restringido ? 'readonly' : 'required'; ?>>
+                                    <small class="text-muted">Nombre completo del usuario tal como aparecerá en el sistema.</small>
                                 </div>
                                 <div class="col-md-6">
                                     <label for="usuarios_email" class="form-label text-info-emphasis">Email</label>
@@ -213,6 +215,7 @@ $imagen_src .= "?t=" . time();
                                            id="usuarios_email" name="usuarios_email"
                                            value="<?php echo htmlspecialchars($row['usuarios_email']); ?>"
                                            <?php echo $es_restringido ? 'readonly' : 'required'; ?>>
+                                    <small class="text-muted">Correo electrónico de contacto del usuario.</small>
                                 </div>
                                 <div class="col-md-3">
                                     <label for="usuarios_profile" class="form-label text-info-emphasis">Perfil</label>
@@ -226,6 +229,7 @@ $imagen_src .= "?t=" . time();
                                         <option value="ADMINISTRADOR" <?php echo $row['usuarios_profile'] === 'ADMINISTRADOR' ? 'selected' : ''; ?>>Administrador</option>
                                     </select>
                                     <?php endif; ?>
+                                    <small class="text-muted">Nivel de acceso del usuario. Área puede ver solo sus iniciativas; Administrador tiene acceso total.</small>
                                 </div>
                                 <?php if ($es_admin): ?>
                                 <div class="col-md-3">
@@ -234,6 +238,7 @@ $imagen_src .= "?t=" . time();
                                         <option value="1" <?php echo (isset($row['usuarios_status']) && $row['usuarios_status'] == 1) ? 'selected' : ''; ?>>Activo</option>
                                         <option value="0" <?php echo (isset($row['usuarios_status']) && $row['usuarios_status'] == 0) ? 'selected' : ''; ?>>Inactivo</option>
                                     </select>
+                                    <small class="text-muted">Los usuarios inactivos no pueden iniciar sesión en el sistema.</small>
                                 </div>
                                 <?php endif; ?>
                             </div>
@@ -250,6 +255,7 @@ $imagen_src .= "?t=" . time();
                                         <input type="password" class="form-control" id="usuarios_password" name="usuarios_password" required>
                                         <button class="btn btn-outline-secondary" type="button" id="togglePasswordNew"><i class="fa-regular fa-eye"></i></button>
                                     </div>
+                                    <small class="text-muted">Mínimo 8 caracteres. Use letras, números y símbolos para mayor seguridad.</small>
                                 </div>
                                 <div class="col-md-6">
                                     <label for="usuarios_password_confirm" class="form-label text-info-emphasis">Confirmar Contraseña</label>
@@ -257,6 +263,7 @@ $imagen_src .= "?t=" . time();
                                         <input type="password" class="form-control" id="usuarios_password_confirm" name="usuarios_password_confirm" required>
                                         <button class="btn btn-outline-secondary" type="button" id="togglePasswordConfirm"><i class="fa-regular fa-eye"></i></button>
                                     </div>
+                                    <small class="text-muted">Repita la contraseña para confirmar que es correcta.</small>
                                 </div>
                             </div>
                             <?php else: ?>
@@ -272,6 +279,7 @@ $imagen_src .= "?t=" . time();
                                             <input type="password" class="form-control" id="usuarios_password" name="usuarios_password">
                                             <button class="btn btn-outline-secondary" type="button" id="togglePasswordNew"><i class="fa-regular fa-eye"></i></button>
                                         </div>
+                                        <small class="text-muted">Mínimo 8 caracteres. Use letras, números y símbolos para mayor seguridad.</small>
                                     </div>
                                     <div class="col-md-6">
                                         <label for="usuarios_password_confirm" class="form-label text-info-emphasis">Confirmar Nueva Contraseña</label>
@@ -279,6 +287,7 @@ $imagen_src .= "?t=" . time();
                                             <input type="password" class="form-control" id="usuarios_password_confirm" name="usuarios_password_confirm">
                                             <button class="btn btn-outline-secondary" type="button" id="togglePasswordConfirm"><i class="fa-regular fa-eye"></i></button>
                                         </div>
+                                        <small class="text-muted">Repita la nueva contraseña para confirmar que es correcta.</small>
                                     </div>
                                 </div>
                             </div>
@@ -311,10 +320,12 @@ $imagen_src .= "?t=" . time();
                                 <div class="col-md-6">
                                     <label for="usuarios_updated" class="form-label text-info-emphasis">Actualizado</label>
                                     <input type="text" class="form-control readonly-field" id="usuarios_updated" value="<?php echo htmlspecialchars($row['usuarios_updated']); ?>" readonly>
+                                    <small class="text-muted">Fecha y hora de la última modificación del perfil. Se actualiza automáticamente.</small>
                                 </div>
                                 <div class="col-md-6">
                                     <label for="last_login" class="form-label text-info-emphasis">Último Login</label>
                                     <input type="text" class="form-control readonly-field" id="last_login" value="<?php echo htmlspecialchars($row['last_login']); ?>" readonly>
+                                    <small class="text-muted">Fecha y hora del último acceso registrado al sistema.</small>
                                 </div>
                             </div>
                         </div>

@@ -104,6 +104,7 @@ $row_estado = $resestado->fetch_assoc();
                             <div class="form-group">
                                 <label for="actividad">NOMBRE</label>
                                 <input type="text" class="form-control" id="actividad" name="actividad" value="<?php echo $row["actividad"];?>">
+                                <small class="text-muted">Nombre descriptivo de la actividad a realizar dentro del proyecto.</small>
                             </div>
                         </div>  
                     </div>
@@ -113,6 +114,7 @@ $row_estado = $resestado->fetch_assoc();
                             <div class="form-group">
                                 <label for="ano">AÑO</label>
                                 <input type="text" class="form-control" id="ano" name="ano" value="<?php echo $row["ano"];?>">
+                                <small class="text-muted">Año de ejecución o programación de esta actividad. Ej: 2025.</small>
                             </div>
                         </div>  
                     </div>
@@ -122,6 +124,7 @@ $row_estado = $resestado->fetch_assoc();
                             <div class="form-group">
                                 <label for="monto">MONTO (en miles de pesos)</label>
                                 <input type="text" class="form-control" id="monto" name="monto" value="<?php echo $row["monto"];?>">
+                                <small class="text-muted">Monto asociado a esta actividad, expresado en miles de pesos (M$).</small>
                             </div>
                         </div>  
                     </div>
@@ -131,6 +134,7 @@ $row_estado = $resestado->fetch_assoc();
                             <div class="form-group">
                                 <label for="finaciamiento">FINACIAMIENTO</label>
                                 <input type="text" class="form-control" id="finaciamiento" name="finaciamiento" value="<?php echo $row["finaciamiento"];?>">
+                                <small class="text-muted">Fuente de financiamiento de esta actividad. Ej: FNDR, Sectorial, Municipal.</small>
                             </div>
                         </div>  
                     </div>
@@ -140,6 +144,7 @@ $row_estado = $resestado->fetch_assoc();
                             <div class="form-group">
                                 <label for="responsable">RESPONSABLE</label>
                                 <input type="text" class="form-control" id="responsable" name="responsable" value="<?php echo $row["responsable"];?>">
+                                <small class="text-muted">Nombre de la persona o unidad encargada de ejecutar esta actividad.</small>
                             </div>
                         </div>  
                     </div>
@@ -153,6 +158,7 @@ $row_estado = $resestado->fetch_assoc();
                                     <option <?php if($row["estado"] == "Completa") {echo " selected ";}?> value="Completa">Completa</option>
                                     <option <?php if($row["estado"] == "Incompleta") {echo " selected ";}?> value="Incompleta">Incompleta</option>
                                 </select>
+                                <small class="text-muted">Indica si la actividad ha sido completada. Este valor afecta el cálculo del avance del proyecto.</small>
                             </div>
                         </div>  
                     </div>
@@ -162,6 +168,7 @@ $row_estado = $resestado->fetch_assoc();
                             <div class="form-group">
                                 <label for="pdf">PDF ADJUNTO (<a target="_blank" href="../adjuntos/<?php echo $row["adjunto"];?>"><?php echo $row["adjunto"];?></a>)</label>
                                 <input class="form-control" accept="application/pdf" type="file" id="pdf" name="pdf" value="<?php echo $row["adjunto"];?>">
+                                <small class="text-muted">Adjunte un documento PDF de respaldo para esta actividad. Solo se aceptan archivos en formato PDF.</small>
                             </div>
                         </div>  
                     </div>
@@ -171,6 +178,7 @@ $row_estado = $resestado->fetch_assoc();
                             <div class="form-group">
                                 <label for="actualizado">ÚLTIMA ACTUALIZACIÓN</label>
                                 <input type="text" readonly class="form-control" id="actualizado" name="actualizado" value="<?php echo $row["actualizado"];?>">
+                                <small class="text-muted">Fecha y hora de la última modificación registrada. Este campo se actualiza automáticamente.</small>
                             </div>
                         </div>  
                     </div>
