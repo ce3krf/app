@@ -179,3 +179,78 @@ label {
 }
 
 
+
+
+
+
+
+
+
+.modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 9999;
+    justify-content: center;
+    align-items: center;
+    padding: 16px;
+}
+.modal-overlay.active {
+    display: flex;
+}
+.modal-box {
+    background: #fff;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 400px;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+}
+.modal-close {
+    position: absolute;
+    top: 10px;
+    right: 14px;
+    background: none;
+    border: none;
+    font-size: 22px;
+    cursor: pointer;
+    color: #666;
+    z-index: 1;
+}
+.modal-content {
+    overflow-y: auto;
+    flex: 1;
+}
+.modal-content iframe {
+    width: 100%;
+    border: none;
+    min-height: 400px;
+}
+.modal-footer {
+    padding: 12px 16px;
+    text-align: right;
+    border-top: 1px solid #eee;
+}
+.btn-custom {
+    background: #e8600a;
+    color: #fff;
+    border: none;
+    padding: 10px 24px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 15px;
+}
+.btn-custom:hover { background: #c94e00; }
+
+/* === jconfirm ancho responsive === */
+.jconfirm .jconfirm-box {
+    width: 90% !important;
+    max-width: 400px !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    box-sizing: border-box !important;
+}

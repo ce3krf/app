@@ -117,38 +117,14 @@ function agregar(id, lat, lng, nom, sector_id, color, cuantos, sector_descripcio
     //var r = (cuantos * 2) + 10;
     var r = 20;
 
-    var marker = L.circleMarker([lat, lng], {
-        color: strk,
-        fillColor: clr,
-        weight: 2,
-        fillOpacity: 0.8,
-        radius: 10,  // Radius in pixels
-        meters: 1 
-    }).addTo(layerGroup).on('click', function(e) {    
-
-    
-//        var marker  = L.marker([lat, lng], {icon: icono}).addTo(layerGroup).on('click', function(e) {
-        var rnd  = Math.random();
-
-        /*
-        var  proceso =  $("input[name='proceso']:checked").map(function() {return this.value;}).get().join(',')    
-        var  sector =  $("input[name='sector']:checked").map(function() {return this.value;}).get().join(',')          
-        var  origen =  $("input[name='origen']:checked").map(function() {return this.value;}).get().join(',')          
-        var  estado =  $("input[name='estado']:checked").map(function() {return this.value;}).get().join(',')          
-        */
-        //url = "datos_detalle.php?sector="+sector+'&proceso='+proceso+'&origen='+origen+'&estado='+estado+'&ubicacion='+cod+ "&token=" + $('#token').val();
-        //url = "datos_detalle.php?estado=&proceso=&ubicacion="+cod;
-        //tabla(url);
-        //$('#tabla').DataTable().ajax.url(url);
-        //$('#tabla').DataTable().ajax.reload();
-        
-        min = true;
-        //restaurar();
-
-
-   
-
-        });
+var marker = L.circleMarker([lat, lng], {
+    color: strk,
+    fillColor: clr,
+    weight: 2,
+    fillOpacity: 0.8,
+    radius: 10,
+    meters: 1 
+}).addTo(layerGroup);
 
         
 
@@ -172,7 +148,7 @@ function agregar(id, lat, lng, nom, sector_id, color, cuantos, sector_descripcio
         tooltip = tooltip + "Sector: " + sector_descripcion + "<br>";
         tooltip = tooltip + '<span class="mas_info">'+"Click para más información"+ '</span>';
 
-        marker.bindPopup( tooltip );
+        marker.bindPopup(tooltip);
         marker.on('mouseover', function (e) {
             this.openPopup();
         });
@@ -180,6 +156,7 @@ function agregar(id, lat, lng, nom, sector_id, color, cuantos, sector_descripcio
             this.closePopup();
         });
         marker.on('click', function (e) {
+            L.DomEvent.stopPropagation(e);
             ver(id);
         });
 
@@ -386,29 +363,34 @@ $('#tabla').DataTable({
 }
 
 
-
 function ver(id){
-
     var x = Math.random();
-	dlg = $.confirm({
-		title: '',
-		type: 'default',
-		boxWidth: '98%',
-		useBootstrap: false,
-		typeAnimated: true,
-		closeIcon: true,
-		buttons: {
-			info: {
-				text: 'Continuar',
-				btnClass: 'btn-custom',
-				action: function () {
-				}
-			}
-		},
-		content: 'url:verproyecto.php?proyectos_id='+id+"&x="+x
-	});
-
-
+    dlg = $.confirm({
+        title: '',
+        type: 'default',
+        useBootstrap: false,
+        typeAnimated: true,
+        closeIcon: true,
+        buttons: {
+            info: {
+                text: 'Continuar',
+                btnClass: 'btn-custom',
+                action: function () {}
+            }
+        },
+        content: 'url:verproyecto.php?proyectos_id='+id+"&x="+x,
+        onOpen: function(){
+            var self = this;
+            [0, 50, 150, 400].forEach(function(t){
+                setTimeout(function(){
+                    var box = self.$body.closest('.jconfirm-box')[0];
+                    if (box) {
+                        box.style.cssText += '; width: 90% !important; max-width: 500px !important; margin-left: auto !important; margin-right: auto !important;';
+                    }
+                }, t);
+            });
+        }
+    });
 }
 
 function acerca(){

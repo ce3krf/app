@@ -238,11 +238,11 @@ function url(dire){
                 typeAnimated: true,
                 closeIcon: true,
                 useBootstrap: false,
-                boxWidth:'95%',
+                boxWidth:'90%',
                 buttons: {
                    info: {
                     text: 'Cerrar', 
-                    btnClass: 'btn-blue', 'btn-blue',
+                    btnClass: 'btn-blue',
                     action: function(){}
                     }
                },
