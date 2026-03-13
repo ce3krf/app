@@ -63,24 +63,24 @@ if (!$es_nuevo_usuario) {
     ];
 }
 
-// Obtener todas las áreas disponibles
-$sql_areas = "SELECT * FROM areas ORDER BY area";
-$result_areas = $db->query($sql_areas);
-$areas_disponibles = [];
-if ($result_areas) {
-    while ($area = $result_areas->fetch_assoc()) {
-        $areas_disponibles[] = $area;
+// Obtener todos los instrumentos disponibles
+$sql_instrumentos = "SELECT * FROM instrumentos ORDER BY instrumentos_descripcion";
+$result_instrumentos = $db->query($sql_instrumentos);
+$instrumentos_disponibles = [];
+if ($result_instrumentos) {
+    while ($instrumento = $result_instrumentos->fetch_assoc()) {
+        $instrumentos_disponibles[] = $instrumento;
     }
 }
 
-// Obtener las áreas asignadas al usuario
-$areas_usuario = [];
+// Obtener los instrumentos asignados al usuario
+$instrumentos_usuario = [];
 if (!$es_nuevo_usuario) {
-    $sql_usuario_areas = "SELECT areas_id FROM usuarios_areas WHERE usuarios_id = '$id'";
-    $result_usuario_areas = $db->query($sql_usuario_areas);
-    if ($result_usuario_areas) {
-        while ($ua = $result_usuario_areas->fetch_assoc()) {
-            $areas_usuario[] = $ua['areas_id'];
+    $sql_usuario_instrumentos = "SELECT instrumentos_id FROM usuarios_areas WHERE usuarios_id = '$id'";
+    $result_usuario_instrumentos = $db->query($sql_usuario_instrumentos);
+    if ($result_usuario_instrumentos) {
+        while ($ui = $result_usuario_instrumentos->fetch_assoc()) {
+            $instrumentos_usuario[] = $ui['instrumentos_id'];
         }
     }
 }
@@ -351,36 +351,36 @@ $imagen_src .= "?t=" . time();
                             </div>
                         </div>
 
-                        <!-- Sección: Áreas asignadas -->
+                        <!-- Sección: Instrumentos asignados -->
                         <div class="section-card">
-                            <div class="section-title"><i class="fa-solid fa-sitemap me-1"></i> Áreas asignadas</div>
+                            <div class="section-title"><i class="fa-solid fa-list-check me-1"></i> Editará las iniciativas de los siguientes instrumentos</div>
                             <small class="text-muted d-block mb-2">Aplica solo a usuarios con perfil Área</small>
 
-                            <?php if (!empty($areas_disponibles)): ?>
+                            <?php if (!empty($instrumentos_disponibles)): ?>
 
                                 <?php if (!$es_restringido): ?>
-                                <!-- Botones Todas / Ninguna: solo para no restringidos -->
+                                <!-- Botones Todos / Ninguno: solo para no restringidos -->
                                 <div class="mb-2 d-flex gap-2">
-                                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="$('.area-checkbox').prop('checked', true); return false;">
-                                        <i class="fa-solid fa-check-double"></i> Todas
+                                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="$('.instrumento-checkbox').prop('checked', true); return false;">
+                                        <i class="fa-solid fa-check-double"></i> Todos
                                     </button>
-                                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="$('.area-checkbox').prop('checked', false); return false;">
-                                        <i class="fa-solid fa-xmark"></i> Ninguna
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="$('.instrumento-checkbox').prop('checked', false); return false;">
+                                        <i class="fa-solid fa-xmark"></i> Ninguno
                                     </button>
                                 </div>
                                 <?php endif; ?>
 
                                 <div class="border rounded p-2" style="max-height: 220px; overflow-y: auto; background-color: #f8f9fa;">
-                                    <?php foreach ($areas_disponibles as $area): ?>
+                                    <?php foreach ($instrumentos_disponibles as $instrumento): ?>
                                     <div class="form-check mb-1">
-                                        <input class="form-check-input area-checkbox" type="checkbox"
-                                               name="areas[]"
-                                               value="<?php echo $area['id']; ?>"
-                                               id="area_<?php echo $area['id']; ?>"
-                                               <?php echo in_array($area['id'], $areas_usuario) ? 'checked' : ''; ?>
+                                        <input class="form-check-input instrumento-checkbox" type="checkbox"
+                                               name="instrumentos[]"
+                                               value="<?php echo $instrumento['instrumentos_id']; ?>"
+                                               id="instrumento_<?php echo $instrumento['instrumentos_id']; ?>"
+                                               <?php echo in_array($instrumento['instrumentos_id'], $instrumentos_usuario) ? 'checked' : ''; ?>
                                                <?php echo $es_restringido ? 'disabled' : ''; ?>>
-                                        <label class="form-check-label small" for="area_<?php echo $area['id']; ?>">
-                                            <?php echo htmlspecialchars($area['area']); ?>
+                                        <label class="form-check-label small" for="instrumento_<?php echo $instrumento['instrumentos_id']; ?>">
+                                            <?php echo htmlspecialchars($instrumento['instrumentos_descripcion']); ?>
                                         </label>
                                     </div>
                                     <?php endforeach; ?>
@@ -391,7 +391,7 @@ $imagen_src .= "?t=" . time();
                                 <?php endif; ?>
 
                             <?php else: ?>
-                            <div class="alert alert-warning py-2 small">No hay áreas disponibles</div>
+                            <div class="alert alert-warning py-2 small">No hay instrumentos disponibles</div>
                             <?php endif; ?>
                         </div>
 

@@ -182,20 +182,20 @@ if(!$indica = $db->query($sql)){
 $row_indica = $indica->fetch_assoc();
 
 
-// Obtener áreas permitidas para el usuario (aplica solo a perfil ÁREA)
-$perfil_usuario   = $_SESSION['usuarios_profile'];
-$user_id_areas    = (int) $_SESSION["net_fulltrust_fas_id"];
-$areas_permitidas = [];   // vacío = sin restricción
+// Obtener instrumentos permitidos para el usuario (aplica solo a perfil ÁREA)
+$perfil_usuario          = $_SESSION['usuarios_profile'];
+$user_id_areas           = (int) $_SESSION["net_fulltrust_fas_id"];
+$instrumentos_permitidos = [];   // vacío = sin restricción
 
 if ($perfil_usuario === 'ÁREA') {
-    $q_ap = "SELECT GROUP_CONCAT(areas_id ORDER BY areas_id) AS areas
-              FROM usuarios_areas WHERE usuarios_id = $user_id_areas";
+    $q_ap = "SELECT GROUP_CONCAT(instrumentos_id ORDER BY instrumentos_id) AS instrumentos
+              FROM usuarios_areas WHERE usuarios_id = $user_id_areas AND instrumentos_id IS NOT NULL";
     if (!$r_ap = $db->query($q_ap)) {
         die('Ha ocurrido un error ejecutando la consulta [' . $db->error . ']');
     }
     $u_ap = $r_ap->fetch_assoc();
-    if (!empty($u_ap['areas'])) {
-        $areas_permitidas = array_map('intval', explode(',', $u_ap['areas']));
+    if (!empty($u_ap['instrumentos'])) {
+        $instrumentos_permitidos = array_map('intval', explode(',', $u_ap['instrumentos']));
     }
 }
 
@@ -687,9 +687,6 @@ function generatePDF() {
         $areas->data_seek(0);
     }
     do {
-        if ($perfil_usuario === 'ÁREA' && !in_array((int)$row_areas["id"], $areas_permitidas, true)) {
-            continue;
-        }
     ?>
     <option <?php if( $row_areas["id"] == $row["unidad_responsable_id"]) {echo " selected ";}?> value="<?php echo $row_areas["id"];?>"><?php echo $row_areas["area"];?></option>
     <?php } while ( $row_areas = $areas->fetch_assoc() );?>
@@ -1203,14 +1200,15 @@ function eliminar(){
 $user_id = $_SESSION["net_fulltrust_fas_id"];
 $perfil  = $_SESSION['usuarios_profile'];
 
-$areas_array = [];
+$instrumentos_array = [];
 
 if ($perfil === 'ÁREA') {
 
     $q = "
-        SELECT GROUP_CONCAT(areas_id ORDER BY areas_id) AS areas
+        SELECT GROUP_CONCAT(instrumentos_id ORDER BY instrumentos_id) AS instrumentos
         FROM usuarios_areas
         WHERE usuarios_id = $user_id
+        AND instrumentos_id IS NOT NULL
     ";
 
     if (!$r = $db->query($q)) {
@@ -1218,13 +1216,13 @@ if ($perfil === 'ÁREA') {
     }
 
     $u = $r->fetch_assoc();
-    $areas_lista = $u['areas'] ?? '';
-    $areas_array = $areas_lista !== '' ? explode(',', $areas_lista) : [];
+    $instrumentos_lista = $u['instrumentos'] ?? '';
+    $instrumentos_array = $instrumentos_lista !== '' ? explode(',', $instrumentos_lista) : [];
 }
 
-/* $row["unidad_responsable_id"] ya debe estar disponible aquí */
+/* $row["instrumento"] corresponde al instrumento del proyecto actual */
 
-if ($perfil === 'ÁREA' && $codigo_proyecto !== 0 && !in_array($row["unidad_responsable_id"], $areas_array, true)) {
+if ($perfil === 'ÁREA' && $codigo_proyecto !== 0 && !in_array((string)$row["instrumento"], $instrumentos_array, true)) {
 ?>
 <script>
 $(function () {

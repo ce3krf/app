@@ -43,10 +43,12 @@ $sqla = "";
 
 if ($perfil == 'ÁREA'){
 
+    // Obtener los instrumentos asignados al usuario
     $q = "
-        SELECT GROUP_CONCAT(areas_id ORDER BY areas_id) AS areas
+        SELECT GROUP_CONCAT(instrumentos_id ORDER BY instrumentos_id) AS instrumentos
         FROM usuarios_areas
         WHERE usuarios_id = $user_id
+        AND instrumentos_id IS NOT NULL
     ";
 
     if (!$r = $db->query($q)) {
@@ -54,9 +56,15 @@ if ($perfil == 'ÁREA'){
     }
 
     $u = $r->fetch_assoc();
-    $areas_lista = $u['areas'];   // ejemplo: "3,7,12,15"
+    $instrumentos_lista = $u['instrumentos'];   // ejemplo: "1,3,5"
 
-	$sqla = " and unidad_responsable_id in (" . $areas_lista . ")";
+    if (!empty($instrumentos_lista)) {
+        // Filtrar proyectos cuyo campo instrumento esté en la lista asignada al usuario
+        $sqla = " and proyectos.instrumento in (" . $instrumentos_lista . ")";
+    } else {
+        // Sin instrumentos asignados: no ve ningún registro
+        $sqla = " and 1 = 0";
+    }
 }
 
 
@@ -118,16 +126,18 @@ FROM
 // **************************************************************************************
 if ( $_POST["task"] == "update" ){
 
-	// Validar que el usuario ÁREA no cambie a un área que no le pertenece
+	// Validar que el usuario ÁREA solo edite proyectos cuyo instrumento le esté asignado
 	if ($perfil == 'ÁREA') {
-	    $uid_check = (int) $_SESSION["net_fulltrust_fas_id"];
-	    $area_enviada = (int) $_POST['unidad_responsable_id'];
-	    $q_check = "SELECT COUNT(*) as cnt FROM usuarios_areas WHERE usuarios_id = $uid_check AND areas_id = $area_enviada";
-	    $r_check = $db->query($q_check);
-	    $row_check = $r_check->fetch_assoc();
+	    $uid_check      = (int) $_SESSION["net_fulltrust_fas_id"];
+	    $instrumento_id = (int) $_POST['instrumento'];
+	    $q_check = "SELECT COUNT(*) as cnt FROM usuarios_areas 
+	                WHERE usuarios_id = $uid_check 
+	                AND instrumentos_id = $instrumento_id";
+	    $r_check   = $db->query($q_check);
+	    $row_check  = $r_check->fetch_assoc();
 	    if ((int)$row_check['cnt'] === 0) {
 	        http_response_code(403);
-	        die('No tiene permisos para asignar esa unidad responsable.');
+	        die('No tiene permisos para editar una iniciativa de ese instrumento.');
 	    }
 	}
 
@@ -214,10 +224,6 @@ if ( $_POST["task"] == "update" ){
 
 
 
-
-
-
-
 // **************************************************************************************
 if ( $_POST["task"] == "delete" ){
 
@@ -238,24 +244,21 @@ if ( $_POST["task"] == "delete" ){
 
 
 
-
-
-
-
-
 // **************************************************************************************
 if ( $_POST["task"] == "insert" ){
 
-	// Validar que el usuario ÁREA no asigne un área que no le pertenece
+	// Validar que el usuario ÁREA solo inserte en instrumentos que tiene asignados
 	if ($perfil == 'ÁREA') {
-	    $uid_check2 = (int) $_SESSION["net_fulltrust_fas_id"];
-	    $area_enviada2 = (int) $_POST['unidad_responsable_id'];
-	    $q_check2 = "SELECT COUNT(*) as cnt FROM usuarios_areas WHERE usuarios_id = $uid_check2 AND areas_id = $area_enviada2";
-	    $r_check2 = $db->query($q_check2);
-	    $row_check2 = $r_check2->fetch_assoc();
+	    $uid_check2      = (int) $_SESSION["net_fulltrust_fas_id"];
+	    $instrumento_id2 = (int) $_POST['instrumento'];
+	    $q_check2 = "SELECT COUNT(*) as cnt FROM usuarios_areas 
+	                 WHERE usuarios_id = $uid_check2 
+	                 AND instrumentos_id = $instrumento_id2";
+	    $r_check2   = $db->query($q_check2);
+	    $row_check2  = $r_check2->fetch_assoc();
 	    if ((int)$row_check2['cnt'] === 0) {
 	        http_response_code(403);
-	        die('No tiene permisos para asignar esa unidad responsable.');
+	        die('No tiene permisos para crear una iniciativa en ese instrumento.');
 	    }
 	}
 

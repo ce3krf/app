@@ -81,7 +81,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['task'])) {
                 $result = $stmt->get_result();
                 $foto_data = $result->fetch_assoc();
                 
-                // Eliminar áreas del usuario primero
+                // Eliminar instrumentos del usuario primero
                 $sql_areas = "DELETE FROM usuarios_areas WHERE usuarios_id = ?";
                 $stmt_areas = $db->prepare($sql_areas);
                 $stmt_areas->bind_param("i", $id);
@@ -273,22 +273,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['task'])) {
                         }
                     }
                     
-                    // Manejar las áreas del usuario
-                    // Primero eliminar todas las áreas actuales del usuario
+                    // Manejar los instrumentos del usuario
+                    // Primero eliminar todos los instrumentos actuales del usuario
                     $sql_delete  = "DELETE FROM usuarios_areas WHERE usuarios_id = ?";
                     $stmt_delete = $db->prepare($sql_delete);
                     $stmt_delete->bind_param("i", $id);
                     $stmt_delete->execute();
                     
-                    // Insertar las nuevas áreas seleccionadas
-                    if (isset($_POST['areas']) && is_array($_POST['areas'])) {
-                        $sql_insert  = "INSERT INTO usuarios_areas (usuarios_id, areas_id) VALUES (?, ?)";
+                    // Insertar los nuevos instrumentos seleccionados
+                    if (isset($_POST['instrumentos']) && is_array($_POST['instrumentos'])) {
+                        $sql_insert  = "INSERT INTO usuarios_areas (usuarios_id, instrumentos_id) VALUES (?, ?)";
                         $stmt_insert = $db->prepare($sql_insert);
                         
-                        foreach ($_POST['areas'] as $area_id) {
-                            $area_id = (int)$area_id;
-                            if ($area_id > 0) {
-                                $stmt_insert->bind_param("ii", $id, $area_id);
+                        foreach ($_POST['instrumentos'] as $instrumento_id) {
+                            $instrumento_id = (int)$instrumento_id;
+                            if ($instrumento_id > 0) {
+                                $stmt_insert->bind_param("ii", $id, $instrumento_id);
                                 $stmt_insert->execute();
                             }
                         }
