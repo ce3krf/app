@@ -219,10 +219,10 @@ include('functions.php');
                     <div class="guia-info">
                         <h6>📋 ¿Qué encontrarás en la guía?</h6>
                         <ul>
-                            <li>Descripción de todos los módulos del sistema</li>
-                            <li>Instrucciones paso a paso para cada función</li>
-                            <li>Preguntas frecuentes y solución de problemas</li>
-                            <li>Recomendaciones y buenas prácticas de uso</li>
+                            <li>Conocer las funciones de cada módulo del sistema</li>
+                            <li>Entender la lógica general del sistema</li>
+                            <li>Conocer de qué forma se relacionan los datos</li>
+                            <li>Saber de qué forma se actualizan los datos y cómo esto afecta a los informes disponibles</li>
                         </ul>
                     </div>
                     
