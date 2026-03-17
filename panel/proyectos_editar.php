@@ -130,7 +130,23 @@ $row = $result->fetch_assoc();
 
 
 
-$sql="select * from instrumentos order by instrumentos_descripcion";
+// Si el perfil es ÁREA, mostrar solo los instrumentos asignados al usuario
+$perfil_usuario_temp = $_SESSION['usuarios_profile'];
+$user_id_temp        = (int) $_SESSION["net_fulltrust_fas_id"];
+
+if ($perfil_usuario_temp === 'ÁREA') {
+    $sql = "
+        SELECT i.instrumentos_id, i.instrumentos_descripcion
+        FROM instrumentos i
+        INNER JOIN usuarios_areas ua 
+            ON ua.instrumentos_id = i.instrumentos_id
+            AND ua.usuarios_id = $user_id_temp
+        ORDER BY i.instrumentos_descripcion
+    ";
+} else {
+    $sql = "SELECT * FROM instrumentos ORDER BY instrumentos_descripcion";
+}
+
 if(!$instrumentos = $db->query($sql)){
     die('Hay un error [' . $db->error . ']');
 }
@@ -464,7 +480,11 @@ function generatePDF() {
      <option <?php if( $row_instrumentos["instrumentos_id"] == $row["instrumento"]) {echo " selected ";}?> value="<?php echo $row_instrumentos["instrumentos_id"];?>"><?php echo $row_instrumentos["instrumentos_descripcion"];?></option>
      <?php } while ( $row_instrumentos = $instrumentos->fetch_assoc() );?>
  </select>
+ <?php if ($perfil_usuario_temp === 'ÁREA'): ?>
+ <small class="text-muted"><i class="fas fa-lock" style="color:#d17a4f"></i> Solo se muestran los instrumentos asignados a su perfil.</small>
+ <?php else: ?>
  <small class="text-muted">Seleccione el instrumento de financiamiento o gestión asociado a esta iniciativa.</small>
+ <?php endif; ?>
 
  </div>
 
