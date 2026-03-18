@@ -7,7 +7,7 @@
 // ************************************************************
 
 @session_start();
-include("../../conf/db.php");		
+include("../conf/db.php");		
 include('functions.php');
 ?>
 
@@ -45,30 +45,16 @@ include('functions.php');
     margin: 0px !important;
     background-color: white !important;
 } 
-
-.dataTables_wrapper .dataTables_paginate {
-    margin-top: 5px;
-}
-
+.dataTables_wrapper .dataTables_paginate { margin-top: 5px; }
 .dataTables_wrapper .dataTables_paginate .paginate_button {
-    padding: 5px 10px;
-    margin: 0 2px;
-    border: 1px solid #ddd;
-    background-color: #f9f9f9;
-    color: #333;
-    cursor: pointer;
+    padding: 5px 10px; margin: 0 2px;
+    border: 1px solid #ddd; background-color: #f9f9f9; color: #333; cursor: pointer;
 }
-
 .dataTables_wrapper .dataTables_paginate .paginate_button.current {
-    background-color: #007bff;
-    color: white;
-    border: 1px solid #007bff;
+    background-color: #007bff; color: white; border: 1px solid #007bff;
 }
-
 .dataTables_wrapper .dataTables_paginate .paginate_button.disabled {
-    background-color: #e9ecef;
-    color: #6c757d;
-    cursor: not-allowed;
+    background-color: #e9ecef; color: #6c757d; cursor: not-allowed;
 }
 </style> 
 	
@@ -87,17 +73,11 @@ $(document).ready(function() {
         bFilter:   true,
         search: { regex: true, smart: true },
 
-        /*
-         * Botón Excel: exporta TODAS las columnas, incluidas las ocultas
-         * (las que tienen className 'no-screen').
-         */
         buttons: [{
             extend: 'excel',
             text: 'Exportar a Excel',
             className: 'btn-excel',
-            exportOptions: {
-                columns: ':not(.no-export)'   // exporta todo excepto la columna VER
-            }
+            exportOptions: { columns: ':not(.no-export)' }
         }],
 
         retrieve:        true,
@@ -106,80 +86,64 @@ $(document).ready(function() {
         sPaginationType: "full_numbers",
         iDisplayLength:  50,
         aaSorting:       [[1, 'asc']],
-
-        /*
-         * dom: el área 'top' aloja filtros + info + paginación superior
-         *      'B' = botones  'r' = procesando  't' = tabla  'ip' = inferior
-         */
         dom: 'B<"top"ifp<"clear">>rt<"bottom"ip<"clear">>',
-
         responsive:  true,
         processing:  true,
 
-        /*
-         * Columnas visibles en pantalla: VER | Nombre | Sector | Etapa | Proceso | Inicio | Término | Responsable
-         * Columnas ocultas (solo Excel):  instrumento | preseleccionado | lineamiento | objetivo |
-         *                                 brecha | descripcion | localizacion | subsector |
-         *                                 codigo_bip | tipo | impacto_territorial | foco_turismo |
-         *                                 codigo_idi | p_diseno | p_ejecucion | total |
-         *                                 fuente | instituciones_vinculadas | beneficiarios |
-         *                                 informacion | avance_financiero | avance_actividades |
-         *                                 lat | lng | proyectos_user | proyectos_created
-         */
         columnDefs: [
-            // ── Visibles ──────────────────────────────────────────────
-            { targets: 0,  visible: true,  width: "4%"  },   // VER (no-export)
+            { targets: 0,  visible: true,  width: "4%"  },   // VER
             { targets: 1,  visible: true,  width: "32%" },   // nombre
             { targets: 2,  visible: true,  width: "14%" },   // sector
             { targets: 3,  visible: true,  width: "14%" },   // etapa
             { targets: 4,  visible: true,  width: "14%" },   // proceso
             { targets: 5,  visible: true,  width: "7%"  },   // finicio
             { targets: 6,  visible: true,  width: "7%"  },   // ftermino
-            // ── Ocultas (solo Excel) ──────────────────────────────────
             { targets: 7,  visible: false },   // unidad_responsable
             { targets: 8,  visible: false },   // instrumento
             { targets: 9,  visible: false },   // preseleccionado
-            { targets: 10, visible: false },   // lineamiento
-            { targets: 11, visible: false },   // objetivo
-            { targets: 12, visible: false },   // brecha
-            { targets: 13, visible: false },   // descripcion
-            { targets: 14, visible: false },   // localizacion
-            { targets: 15, visible: false },   // subsector
-            { targets: 16, visible: false },   // tipo
-            { targets: 17, visible: false },   // impacto_territorial
-            { targets: 18, visible: false },   // foco_turismo
-            { targets: 19, visible: false },   // codigo_idi
-            { targets: 20, visible: false },   // p_diseno
-            { targets: 21, visible: false },   // p_ejecucion
-            { targets: 22, visible: false },   // total
-            { targets: 23, visible: false },   // fuente
-            { targets: 24, visible: false },   // instituciones_vinculadas
-            { targets: 25, visible: false },   // beneficiarios
-            { targets: 26, visible: false },   // informacion
-            { targets: 27, visible: false },   // avance_financiero
-            { targets: 28, visible: false },   // avance_actividades
-            { targets: 29, visible: false },   // lat
-            { targets: 30, visible: false },   // lng
-            { targets: 31, visible: false },   // proyectos_user
-            { targets: 32, visible: false },   // proyectos_created
+            { targets: 10, visible: false },   // lineamiento_id
+            { targets: 11, visible: false },   // lineamiento
+            { targets: 12, visible: false },   // objetivo_id
+            { targets: 13, visible: false },   // objetivo
+            { targets: 14, visible: false },   // brecha
+            { targets: 15, visible: false },   // descripcion
+            { targets: 16, visible: false },   // localizacion
+            { targets: 17, visible: false },   // subsector
+            { targets: 18, visible: false },   // tipo
+            { targets: 19, visible: false },   // impacto_territorial
+            { targets: 20, visible: false },   // foco_turismo
+            { targets: 21, visible: false },   // codigo_idi
+            { targets: 22, visible: false },   // p_diseno
+            { targets: 23, visible: false },   // p_ejecucion
+            { targets: 24, visible: false },   // total
+            { targets: 25, visible: false },   // fuente
+            { targets: 26, visible: false },   // instituciones_vinculadas
+            { targets: 27, visible: false },   // beneficiarios
+            { targets: 28, visible: false },   // informacion
+            { targets: 29, visible: false },   // avance_financiero
+            { targets: 30, visible: false },   // avance_actividades
+            { targets: 31, visible: false },   // lat
+            { targets: 32, visible: false },   // lng
+            { targets: 33, visible: false },   // proyectos_user
+            { targets: 34, visible: false },   // proyectos_created
         ],
 
         "sAjaxSource": "api/proyectos.php?token=" + token + "&task=list",
 
         "aoColumns": [
-            // ── Visibles ──────────────────────────────────────────────
-            { mData: mixVer,             className: 'no-export' },
+            { mData: mixVer,                   className: 'no-export' },
             { mData: 'nombre' },
             { mData: 'sector' },
             { mData: 'etapas_descripcion' },
             { mData: 'procesos_descripcion' },
             { mData: 'finicio' },
             { mData: 'ftermino' },
-            // ── Ocultas (solo Excel) ──────────────────────────────────
             { mData: 'unidad_responsable' },
             { mData: 'instrumento' },
             { mData: 'preseleccionado' },
+            { mData: 'lineamiento_id' },
             { mData: 'lineamiento' },
+            { mData: 'objetivo_id' },
             { mData: 'objetivo' },
             { mData: 'brecha' },
             { mData: 'descripcion' },
@@ -231,7 +195,6 @@ $(document).ready(function() {
         }
     });
 
-    /* ── Filtro por Sector ─────────────────────────────────────────── */
     function agregarFiltroSector() {
         if ($("#filtroSector").length === 0) {
             $("#tabla_wrapper .top").prepend(
@@ -239,28 +202,22 @@ $(document).ready(function() {
                 '<select id="filtroSector"><option value="">Todos</option></select></label>'
             );
         }
-
         var sectores = [];
         tabla.column(2).data().each(function(value) {
-            if (value && sectores.indexOf(value) === -1) {
-                sectores.push(value);
-            }
+            if (value && sectores.indexOf(value) === -1) sectores.push(value);
         });
         sectores.sort().forEach(function(s) {
             $("#filtroSector").append('<option value="' + s + '">' + s + '</option>');
         });
-
         $("#filtroSector").on("change", function() {
             tabla.column(2).search($(this).val()).draw();
         });
     }
 
-    /* ── Botón exportar externo ────────────────────────────────────── */
     $("#bexcel").on("click", function() {
         $(".buttons-excel").trigger("click");
     });
 
-    /* ── Columna VER ───────────────────────────────────────────────── */
     function mixVer(data) {
         return '<a href="proyectos_editar.php?proyectos_id=' + data.id + '">' +
                '<img src="img/document.png" width="32"></a>';
@@ -274,14 +231,9 @@ $(document).ready(function() {
 
 function ayuda(){
     $.confirm({
-        title: '',
-        type: 'orange',
-        boxWidth: '90%',
-        typeAnimated: true,
-        closeIcon: true,
-        buttons: {
-            info: { text: 'Cerrar', action: function(){} }
-        },
+        title: '', type: 'orange', boxWidth: '90%',
+        typeAnimated: true, closeIcon: true,
+        buttons: { info: { text: 'Cerrar', action: function(){} } },
         content: 'url:ayuda_proyetos.html'
     });   	
 }	
@@ -291,6 +243,9 @@ function ayuda(){
 <body>
 
 <?php include("header.php");?>
+
+<!-- Token de sesión para el Ajax -->
+<input type="hidden" id="sid" value="<?php echo session_id(); ?>">
 
 <div id="wrapper">
     <div id="sidebar-wrapper">
@@ -330,7 +285,9 @@ function ayuda(){
                             <th>Responsable</th>
                             <th>Instrumento</th>
                             <th>Preseleccionado</th>
+                            <th>ID Lineamiento</th>
                             <th>Lineamiento</th>
+                            <th>ID Objetivo</th>
                             <th>Objetivo</th>
                             <th>Brecha</th>
                             <th>Descripción</th>

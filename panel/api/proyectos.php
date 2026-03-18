@@ -1,21 +1,13 @@
 <?php 
 // ************************************************************
-//    __       _ _ _                  _   
-//   / _|_   _| | | |_ _ __ _   _ ___| |_ 
-//  | |_| | | | | | __| '__| | | / __| __|
-//  |  _| |_| | | | |_| |  | |_| \__ \ |_ 
-//  |_|  \__,_|_|_|\__|_|   \__,_|___/\__|
-//                                         
 // Autor: Marcelo Jiménez
 // Fulltrust Software
 // https://www.fulltrust.net
-// Fecha última actualización: 2026-03-18 13:13:51
+// Fecha última actualización: 2026-03-18
 // ************************************************************
-
 
 //error_reporting(E_ALL);
 //ini_set('display_errors', 1);
-
 
 @session_start();
 
@@ -33,7 +25,7 @@ if (
 
 $q = "set names utf8";
 if(!$preg = $db->query($q)){
-	die('Ha ocurrido un error ejecutando la consulta [' . $db->error . ']');
+    die('Ha ocurrido un error ejecutando la consulta [' . $db->error . ']');
 }
 
 
@@ -59,7 +51,7 @@ if ($perfil == 'ÁREA') {
     $instrumentos_lista = $u['instrumentos'];
 
     if (!empty($instrumentos_lista)) {
-        $sqla = " AND proyectos.instrumento IN (" . $instrumentos_lista . ")";
+        $sqla = " AND p.instrumento IN (" . $instrumentos_lista . ")";
     } else {
         $sqla = " AND 1 = 0";
     }
@@ -69,26 +61,15 @@ if ($perfil == 'ÁREA') {
 // **************************************************************************************
 if ( isset($_GET["task"]) && $_GET["task"] == "list" ) {
 
-    /*
-     * Nueva estructura de proyectos:
-     *  - sector      : varchar (valor directo, ya no FK a sectores)
-     *  - etapa       : varchar/int → FK a etapas.etapas_id  (tras la migración)
-     *  - proceso     : int → FK a procesos.procesos_id
-     *  - finicio     : int (año)
-     *  - ftermino    : int (año)
-     *  - unidad_responsable_id : int → FK a unidades (se muestra descripción)
-     *
-     * Para el Excel se exportan TODOS los campos relevantes aunque no sean
-     * visibles en la tabla de pantalla.
-     */
-
     $sql = "
         SELECT
             p.id,
             p.instrumento,
             p.preseleccionado,
             p.nombre,
+            p.lineamiento_id,
             p.lineamiento,
+            p.objetivo_id,
             p.objetivo,
             p.brecha,
             p.descripcion,
@@ -293,10 +274,8 @@ if ( isset($_POST["task"]) && $_POST["task"] == "insert" ) {
         die('Hay un error [' . $db->error . ']');
     }
 
-    // Recupera el último id creado
-    $sql    = "SELECT * FROM proyectos ORDER BY id DESC LIMIT 1";
-    $result = $db->query($sql);
-    $row    = $result->fetch_assoc();
+    // Recupera el último id creado con INSERT_ID para evitar race conditions
+    $nuevo_id = $db->insert_id;
 
     $uid_ins = (int) $_SESSION["net_fulltrust_fas_id"];
     $q_usr2  = "SELECT usuarios_nombre FROM usuarios WHERE usuarios_id = $uid_ins LIMIT 1";
@@ -339,14 +318,14 @@ if ( isset($_POST["task"]) && $_POST["task"] == "insert" ) {
     $sql .= "lat                     = '" . $esc('lat')                     . "', ";
     $sql .= "lng                     = '" . $esc('lng')                     . "', ";
     $sql .= "proyectos_user          = '$proyectos_user_ins' ";
-    $sql .= "WHERE id = '" . $row['id'] . "';";
+    $sql .= "WHERE id = '" . $nuevo_id . "';";
 
     // file_put_contents('debug.txt', $sql);
 
     if (!$result = $db->query($sql)) {
         die('Hay un error [' . $db->error . ']');
     } else {
-        echo $row["id"];
+        echo $nuevo_id;
     }
 }
 // **************************************************************************************
