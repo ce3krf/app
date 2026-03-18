@@ -163,7 +163,7 @@ $row_estado = $resestado->fetch_assoc();
                         </div>  
                     </div>
 
-                    <div class="row">
+                    <div class="row" style="display:none">
                         <div class="col">
                             <div class="form-group">
                                 <label for="pdf">PDF ADJUNTO (<a target="_blank" href="../adjuntos/<?php echo $row["adjunto"];?>"><?php echo $row["adjunto"];?></a>)</label>

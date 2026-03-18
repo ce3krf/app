@@ -3,7 +3,7 @@
 // Autor: Marcelo Jiménez
 // Fulltrust Software
 // https://www.fulltrust.net
-// Fecha última actualización: 2024-12-31 10:55:01
+// Fecha última actualización: 2026-03-18
 // ************************************************************
 
 @session_start();
@@ -73,141 +73,205 @@ include('functions.php');
 </style> 
 	
 <script>
-function abre(id){
-	document.form1["wid"].value=id;
-	document.form1.submit();
-}	
-
 $(document).ready(function() {
+
     var token = $("#sid").val();
-    var task = "list";
 
     var tabla = $('#tabla').DataTable({
+
         initComplete: function(settings, json) {
-            agregarFiltroArea();
+            agregarFiltroSector();
         },
 
         searching: true,
-        bFilter: true,
-        search: {
-            regex: true,
-            smart: true
-        },
+        bFilter:   true,
+        search: { regex: true, smart: true },
 
+        /*
+         * Botón Excel: exporta TODAS las columnas, incluidas las ocultas
+         * (las que tienen className 'no-screen').
+         */
         buttons: [{
             extend: 'excel',
             text: 'Exportar a Excel',
             className: 'btn-excel',
             exportOptions: {
-                columns: 'th:not(.no-export)'
+                columns: ':not(.no-export)'   // exporta todo excepto la columna VER
             }
         }],
 
-        retrieve: true,
+        retrieve:        true,
         searchHighlight: true,
-
-        bPaginate: true,
+        bPaginate:       true,
         sPaginationType: "full_numbers",
-        iDisplayLength: 50,
-        aaSorting: [[0, 'asc']],
+        iDisplayLength:  50,
+        aaSorting:       [[1, 'asc']],
 
+        /*
+         * dom: el área 'top' aloja filtros + info + paginación superior
+         *      'B' = botones  'r' = procesando  't' = tabla  'ip' = inferior
+         */
         dom: 'B<"top"ifp<"clear">>rt<"bottom"ip<"clear">>',
 
-        responsive: true,
-        processing: true,
+        responsive:  true,
+        processing:  true,
 
+        /*
+         * Columnas visibles en pantalla: VER | Nombre | Sector | Etapa | Proceso | Inicio | Término | Responsable
+         * Columnas ocultas (solo Excel):  instrumento | preseleccionado | lineamiento | objetivo |
+         *                                 brecha | descripcion | localizacion | subsector |
+         *                                 codigo_bip | tipo | impacto_territorial | foco_turismo |
+         *                                 codigo_idi | p_diseno | p_ejecucion | total |
+         *                                 fuente | instituciones_vinculadas | beneficiarios |
+         *                                 informacion | avance_financiero | avance_actividades |
+         *                                 lat | lng | proyectos_user | proyectos_created
+         */
         columnDefs: [
-            { "targets": 0, visible: true, width: "5%" },
-            { "targets": 1, visible: true, width: "34%" },
-            { "targets": 2, visible: true, width: "17%" },
-            { "targets": 3, visible: true, width: "17%" },
-            { "targets": 4, visible: true, width: "17%" },
-            { "targets": 5, visible: true, width: "17%" },
-            { "targets": 6, visible: true, width: "10%" },
-            { "targets": 7, visible: true },
+            // ── Visibles ──────────────────────────────────────────────
+            { targets: 0,  visible: true,  width: "4%"  },   // VER (no-export)
+            { targets: 1,  visible: true,  width: "32%" },   // nombre
+            { targets: 2,  visible: true,  width: "14%" },   // sector
+            { targets: 3,  visible: true,  width: "14%" },   // etapa
+            { targets: 4,  visible: true,  width: "14%" },   // proceso
+            { targets: 5,  visible: true,  width: "7%"  },   // finicio
+            { targets: 6,  visible: true,  width: "7%"  },   // ftermino
+            // ── Ocultas (solo Excel) ──────────────────────────────────
+            { targets: 7,  visible: false },   // unidad_responsable
+            { targets: 8,  visible: false },   // instrumento
+            { targets: 9,  visible: false },   // preseleccionado
+            { targets: 10, visible: false },   // lineamiento
+            { targets: 11, visible: false },   // objetivo
+            { targets: 12, visible: false },   // brecha
+            { targets: 13, visible: false },   // descripcion
+            { targets: 14, visible: false },   // localizacion
+            { targets: 15, visible: false },   // subsector
+            { targets: 16, visible: false },   // tipo
+            { targets: 17, visible: false },   // impacto_territorial
+            { targets: 18, visible: false },   // foco_turismo
+            { targets: 19, visible: false },   // codigo_idi
+            { targets: 20, visible: false },   // p_diseno
+            { targets: 21, visible: false },   // p_ejecucion
+            { targets: 22, visible: false },   // total
+            { targets: 23, visible: false },   // fuente
+            { targets: 24, visible: false },   // instituciones_vinculadas
+            { targets: 25, visible: false },   // beneficiarios
+            { targets: 26, visible: false },   // informacion
+            { targets: 27, visible: false },   // avance_financiero
+            { targets: 28, visible: false },   // avance_actividades
+            { targets: 29, visible: false },   // lat
+            { targets: 30, visible: false },   // lng
+            { targets: 31, visible: false },   // proyectos_user
+            { targets: 32, visible: false },   // proyectos_created
         ],
 
         "sAjaxSource": "api/proyectos.php?token=" + token + "&task=list",
+
         "aoColumns": [
-            { mData: mix },
+            // ── Visibles ──────────────────────────────────────────────
+            { mData: mixVer,             className: 'no-export' },
             { mData: 'nombre' },
-            { mData: 'sector_descripcion' },
+            { mData: 'sector' },
             { mData: 'etapas_descripcion' },
             { mData: 'procesos_descripcion' },
             { mData: 'finicio' },
             { mData: 'ftermino' },
+            // ── Ocultas (solo Excel) ──────────────────────────────────
             { mData: 'unidad_responsable' },
+            { mData: 'instrumento' },
+            { mData: 'preseleccionado' },
+            { mData: 'lineamiento' },
+            { mData: 'objetivo' },
+            { mData: 'brecha' },
+            { mData: 'descripcion' },
+            { mData: 'localizacion' },
+            { mData: 'subsector' },
+            { mData: 'tipo' },
+            { mData: 'impacto_territorial' },
+            { mData: 'foco_turismo' },
+            { mData: 'codigo_idi' },
+            { mData: 'p_diseno' },
+            { mData: 'p_ejecucion' },
+            { mData: 'total' },
+            { mData: 'fuente' },
+            { mData: 'instituciones_vinculadas' },
+            { mData: 'beneficiarios' },
+            { mData: 'informacion' },
+            { mData: 'avance_financiero' },
+            { mData: 'avance_actividades' },
+            { mData: 'lat' },
+            { mData: 'lng' },
+            { mData: 'proyectos_user' },
+            { mData: 'proyectos_created' },
         ],
 
         "language": {
-            "sProcessing": "<p align='center'><img src='img/ajax-loader.svg' /></p>",
-            "sLengthMenu": "Mostrar _MENU_ registros",
-            "sZeroRecords": "No se encontraron resultados",
-            "sEmptyTable": "Ningún dato disponible en esta tabla",
-            "sInfo": "(_START_ al _END_ de _TOTAL_) registros",
-            "sInfoEmpty": "0 al 0 ",
+            "sProcessing":   "<p align='center'><img src='img/ajax-loader.svg' /></p>",
+            "sLengthMenu":   "Mostrar _MENU_ registros",
+            "sZeroRecords":  "No se encontraron resultados",
+            "sEmptyTable":   "Ningún dato disponible en esta tabla",
+            "sInfo":         "(_START_ al _END_ de _TOTAL_) registros",
+            "sInfoEmpty":    "0 al 0 ",
             "sInfoFiltered": "de _MAX_ totales",
-            "sInfoPostFix": "",
-            "sSearch": "",
+            "sInfoPostFix":  "",
+            "sSearch":       "",
             "searchPlaceholder": "Buscar",
-            "sUrl": "",
+            "sUrl":          "",
             "sInfoThousands": ",",
             "sLoadingRecords": "",
             "oPaginate": {
-                "sFirst": "<<",
-                "sLast": ">>",
-                "sNext": ">",
+                "sFirst":    "<<",
+                "sLast":     ">>",
+                "sNext":     ">",
                 "sPrevious": "<"
             },
             "oAria": {
-                "sSortAscending": ": Activar para ordenar la columna de manera ascendente",
+                "sSortAscending":  ": Activar para ordenar la columna de manera ascendente",
                 "sSortDescending": ": Activar para ordenar la columna de manera descendente"
             }
         }
     });
 
-    function agregarFiltroArea() {
-        if ($("#filtroArea").length === 0) {
-            $("#tabla_wrapper .top").prepend('<label>Sector: <select id="filtroArea"><option value="">Todos</option></select></label>');
+    /* ── Filtro por Sector ─────────────────────────────────────────── */
+    function agregarFiltroSector() {
+        if ($("#filtroSector").length === 0) {
+            $("#tabla_wrapper .top").prepend(
+                '<label style="margin-right:15px">Sector:&nbsp;' +
+                '<select id="filtroSector"><option value="">Todos</option></select></label>'
+            );
         }
 
-        var areas = [];
+        var sectores = [];
         tabla.column(2).data().each(function(value) {
-            if (areas.indexOf(value) === -1) {
-                areas.push(value);
+            if (value && sectores.indexOf(value) === -1) {
+                sectores.push(value);
             }
         });
-
-        areas.forEach(function(area) {
-            $("#filtroArea").append('<option value="' + area + '">' + area + '</option>');
+        sectores.sort().forEach(function(s) {
+            $("#filtroSector").append('<option value="' + s + '">' + s + '</option>');
         });
 
-        $("#filtroArea").on("change", function() {
-            var valorSeleccionado = $(this).val();
-            tabla.column(2).search(valorSeleccionado).draw();
+        $("#filtroSector").on("change", function() {
+            tabla.column(2).search($(this).val()).draw();
         });
     }
 
+    /* ── Botón exportar externo ────────────────────────────────────── */
     $("#bexcel").on("click", function() {
         $(".buttons-excel").trigger("click");
     });
 
-    function mix(data, type, dataToSet) {
-        var link = '<a href="proyectos_editar.php?proyectos_id=' + data.id + '"><img src="img/document.png" width="32"></a>';
-        return link;
+    /* ── Columna VER ───────────────────────────────────────────────── */
+    function mixVer(data) {
+        return '<a href="proyectos_editar.php?proyectos_id=' + data.id + '">' +
+               '<img src="img/document.png" width="32"></a>';
     }
 
     $('#tabla').on('error.dt', function(e, settings, techNote, message) {
-        console.log('An error has been reported by DataTables: ', message);
+        console.log('DataTables error: ', message);
     });
+
 });
 
-function abrir(cod){
-	$("#cont").load("loading.php");
-	$("#cont").load("licitaciones_detalle.php?wid="+cod);
-	$("#cont").toggle();
-}
-	
 function ayuda(){
     $.confirm({
         title: '',
@@ -216,10 +280,7 @@ function ayuda(){
         typeAnimated: true,
         closeIcon: true,
         buttons: {
-            info: {
-                text: 'Cerrar', 
-                action: function(){}
-            }
+            info: { text: 'Cerrar', action: function(){} }
         },
         content: 'url:ayuda_proyetos.html'
     });   	
@@ -244,23 +305,54 @@ function ayuda(){
                     <h5>INICIATIVAS</h5>
                 </div>
                 <div class="col text-end">
-                    <button id="bexcel" type="button" class="btn btn-primary btn-excel"><i class="fa-solid fa-file-arrow-down"></i>&nbsp;Exportar datos</button>
-                    <button onclick="window.location='proyectos_editar.php?proyectos_id=0'" type="button" class="btn btn-primary"><i class="fa-solid fa-plus"></i>&nbsp;Nueva iniciativa</button>
+                    <button id="bexcel" type="button" class="btn btn-primary btn-excel">
+                        <i class="fa-solid fa-file-arrow-down"></i>&nbsp;Exportar datos
+                    </button>
+                    <button onclick="window.location='proyectos_editar.php?proyectos_id=0'" type="button" class="btn btn-primary">
+                        <i class="fa-solid fa-plus"></i>&nbsp;Nueva iniciativa
+                    </button>
                 </div>                        
             </div>
 
             <div class="container mt-3">
-                <table id="tabla" class="table display hoverable" style="width: 100% !important">
+                <table id="tabla" class="table display hoverable" style="width:100% !important">
                     <thead>
                         <tr>
-                            <th style="width:5% !important;">VER</th>
-                            <th style="width:17%">Nombre</th>
-                            <th style="width:17%">Sector</th>
-                            <th style="width:17%">Etapa</th>
-                            <th style="width:17%">Proceso</th>
-                            <th style="width:17%">Inicio</th>
-                            <th style="width:17%">Término</th>
-                            <th style="width:17%">Responsable</th>
+                            <!-- Visibles -->
+                            <th style="width:4%">VER</th>
+                            <th style="width:32%">Nombre</th>
+                            <th style="width:14%">Sector</th>
+                            <th style="width:14%">Etapa</th>
+                            <th style="width:14%">Proceso</th>
+                            <th style="width:7%">Inicio</th>
+                            <th style="width:7%">Término</th>
+                            <!-- Ocultas / solo Excel -->
+                            <th>Responsable</th>
+                            <th>Instrumento</th>
+                            <th>Preseleccionado</th>
+                            <th>Lineamiento</th>
+                            <th>Objetivo</th>
+                            <th>Brecha</th>
+                            <th>Descripción</th>
+                            <th>Localización</th>
+                            <th>Subsector</th>
+                            <th>Tipo</th>
+                            <th>Impacto Territorial</th>
+                            <th>Foco Turismo</th>
+                            <th>Código IDI</th>
+                            <th>Presup. Diseño</th>
+                            <th>Presup. Ejecución</th>
+                            <th>Total</th>
+                            <th>Fuente</th>
+                            <th>Instituciones Vinculadas</th>
+                            <th>Beneficiarios</th>
+                            <th>Información</th>
+                            <th>Avance Financiero</th>
+                            <th>Avance Actividades</th>
+                            <th>Latitud</th>
+                            <th>Longitud</th>
+                            <th>Usuario</th>
+                            <th>Fecha Creación</th>
                         </tr>
                     </thead>
                     <tbody></tbody>

@@ -76,9 +76,11 @@ function exportarAExcel(datos, nombreArchivo, nombreHoja) {
             
             <div class="d-flex justify-content-between align-items-center mb-3 pb-3 border-bottom">
                 <h5 class="mb-0">PANEL DE CONTROL</h5>
+                <!--
                 <button onclick="pdf();" type="button" class="btn btn-secondary btn-sm">
                     <i class="fas fa-file-pdf"></i> Exportar PDF
                 </button>
+                -->
             </div>
 
             <div id="pprint">
