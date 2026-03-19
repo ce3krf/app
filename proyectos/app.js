@@ -69,13 +69,13 @@ function muestra(sector, proceso, origen, estado) {
                     $('#m1').html('<span style="color:gold;">&#9733;</span>' + howmany + ' iniciativas');
 
                     var id = data.aaData[i].id;
-                    var lat = data.aaData[i].lng;
-                    var lng = data.aaData[i].lat;
+                    var lat = data.aaData[i].lat;
+                    var lng = data.aaData[i].lng;
                     var nom = data.aaData[i].nombre;
                     var sector_id = data.aaData[i].sector_id;
-                    var sector_descripcion = data.aaData[i].sector_descripcion;
-                    var color = data.aaData[i].sector_color;
-                    var cuantos = data.aaData[i].cuantos;
+                    var sector_descripcion = data.aaData[i].sector_descripcion || data.aaData[i].sector || '';
+                    var color = data.aaData[i].sector_color || '#3388ff';
+                    var cuantos = 1;
 
                     if (lat != '' && lng != '' && lat != '0' && lng != '0') 
                         agregar(id, lat, lng, nom, sector_id, color, cuantos, sector_descripcion);
@@ -110,12 +110,12 @@ function agregar(id, lat, lng, nom, sector_id, color, cuantos, sector_descripcio
     var strk=clr;
     
     var originalColor = color;
-    var oscurecido ='#000000'; // 
+    var oscurecido ='#ffffff'; // 
     strk = oscurecido;
 
 
     //var r = (cuantos * 2) + 10;
-    var r = 20;
+    var r = 30;
 
 var marker = L.circleMarker([lat, lng], {
     color: strk,
@@ -130,14 +130,6 @@ var marker = L.circleMarker([lat, lng], {
 
 
 
-        var text2 = L.tooltip({
-            direction: 'center',
-            className: 'etiqueta',
-            permanent: true
-        })
-        .setContent(cuantos)
-        .setLatLng([lat, lng]);
-        marker.bindTooltip(text2);
 
         var iniciativa = "iniciativa";
         if (cuantos > 1){
@@ -323,38 +315,45 @@ $('#tabla').DataTable({
 	
 	columnDefs: [
 
-	{ data: 'codigo_bip', 
-		render: function ( data, type, row ) { return '<center><a style="color:white" href="javascript:;" onclick="ver('+row.id+');"><i class="fas fa-info-circle fa-2x"></i></a></center>';   },
-	
-	targets: 0   }, 	
-
-	{ data: 'codigo_bip', 
-		render: function ( data, type, row ) {  
-		var cadena = '<b>'+row.nombre+'</b> ';
-		cadena = cadena + '</div>'; 
-		return cadena;
+	// Columna 0: Botón ver
+	{ data: 'id', 
+		render: function ( data, type, row ) { 
+			return '<center><a style="color:white" href="javascript:;" onclick="ver('+row.id+');"><i class="fas fa-info-circle fa-2x"></i></a></center>';
 		},
-		
-		targets: 1   },  
+		targets: 0
+	},
 
-	{ data: 'sector_descripcion', 
+	// Columna 1: Nombre del proyecto
+	{ data: 'nombre', 
 		render: function ( data, type, row ) {  
-		return data;
+			var cadena = '<b>' + (row.nombre || '') + '</b>';
+			if (row.codigo_bip) cadena += ' <small style="color:#aaa">BIP: ' + row.codigo_bip + '</small>';
+			return cadena;
 		},
-		
-		targets: 2   },  
+		targets: 1
+	},
 
-	{ data: 'etapas_descripcion', 
-		render: function ( data, type, row ) { return data;   },
-		
-		targets: 3   },  
+	// Columna 2: Sector (ahora varchar directo, sin JOIN)
+	{ data: 'sector', 
+		render: function ( data, type, row ) {  
+			var txt = data || '';
+			if (row.subsector) txt += '<br><small style="color:#aaa">' + row.subsector + '</small>';
+			return txt;
+		},
+		targets: 2
+	},
 
+	// Columna 3: Etapa (ahora varchar directo, sin JOIN)
+	{ data: 'etapa', 
+		render: function ( data, type, row ) { return data || ''; },
+		targets: 3
+	},
+
+	// Columna 4: Proceso (JOIN con tabla procesos)
 	{ data: 'procesos_descripcion', 
-		render: function ( data, type, row ) { return data;   },
-		
-		targets: 4   },  
-
-
+		render: function ( data, type, row ) { return data || ''; },
+		targets: 4
+	},
 
 	],
 	

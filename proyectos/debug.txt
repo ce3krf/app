@@ -2,20 +2,32 @@
 SELECT 
   `proyectos`.`id`,
   `proyectos`.`nombre`,
-  `sectores`.`sector_descripcion`,
-  `etapas`.`etapas_descripcion`,
-  `procesos`.`procesos_descripcion`,
+  `proyectos`.`sector`,
+  `proyectos`.`subsector`,
+  `proyectos`.`etapa`,
   `proyectos`.`finicio`,
   `proyectos`.`ftermino`,
-  `proyectos`.`unidad_responsable`,
+  `proyectos`.`unidad_responsable_id`,
   `proyectos`.`lat`,
   `proyectos`.`lng`,
+  `proyectos`.`total`,
+  `proyectos`.`avance_actividades`,
+  `proyectos`.`avance_financiero`,
+  `proyectos`.`impacto_territorial`,
+  `proyectos`.`foco_turismo`,
+  `proyectos`.`codigo_bip`,
+  `proyectos`.`codigo_idi`,
+  `proyectos`.`lineamiento`,
+  `proyectos`.`objetivo`,
+  `proyectos`.`proyectos_status`,
+  `procesos`.`procesos_descripcion`,
   `sectores`.`sector_id`,
-  `sectores`.`sector_color`
+  `sectores`.`sector_color`,
+  `sectores`.`sector_descripcion`
 FROM
   `proyectos`
+  LEFT OUTER JOIN `procesos` ON (`proyectos`.`proceso` = `procesos`.`procesos_id`)
   LEFT OUTER JOIN `sectores` ON (`proyectos`.`sector` = `sectores`.`sector_id`)
-  LEFT OUTER JOIN `etapas` ON (`proyectos`.`etapa` = `etapas`.`etapas_id`)
-  LEFT OUTER JOIN `procesos` ON (`proyectos`.`proceso` = `procesos`.`procesos_id`) 
-
- 
+WHERE `proyectos`.`proyectos_status` = 1
+AND `proyectos`.`lat` IS NOT NULL AND `proyectos`.`lat` != '' AND `proyectos`.`lat` != '0'
+AND `proyectos`.`lng` IS NOT NULL AND `proyectos`.`lng` != '' AND `proyectos`.`lng` != '0'

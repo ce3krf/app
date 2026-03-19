@@ -32,26 +32,39 @@ $sql = "
 SELECT 
   `proyectos`.`id`,
   `proyectos`.`nombre`,
-  `sectores`.`sector_descripcion`,
-  `etapas`.`etapas_descripcion`,
-  `procesos`.`procesos_descripcion`,
+  `proyectos`.`sector`,
+  `proyectos`.`subsector`,
+  `proyectos`.`etapa`,
   `proyectos`.`finicio`,
   `proyectos`.`ftermino`,
-  `proyectos`.`unidad_responsable`,
+  `proyectos`.`unidad_responsable_id`,
   `proyectos`.`lat`,
   `proyectos`.`lng`,
+  `proyectos`.`total`,
+  `proyectos`.`avance_actividades`,
+  `proyectos`.`avance_financiero`,
+  `proyectos`.`impacto_territorial`,
+  `proyectos`.`foco_turismo`,
+  `proyectos`.`codigo_bip`,
+  `proyectos`.`codigo_idi`,
+  `proyectos`.`lineamiento`,
+  `proyectos`.`objetivo`,
+  `proyectos`.`proyectos_status`,
+  `procesos`.`procesos_descripcion`,
   `sectores`.`sector_id`,
-  `sectores`.`sector_color`
+  `sectores`.`sector_color`,
+  `sectores`.`sector_descripcion`
 FROM
   `proyectos`
+  LEFT OUTER JOIN `procesos` ON (`proyectos`.`proceso` = `procesos`.`procesos_id`)
   LEFT OUTER JOIN `sectores` ON (`proyectos`.`sector` = `sectores`.`sector_id`)
-  LEFT OUTER JOIN `etapas` ON (`proyectos`.`etapa` = `etapas`.`etapas_id`)
-  LEFT OUTER JOIN `procesos` ON (`proyectos`.`proceso` = `procesos`.`procesos_id`) 
+WHERE `proyectos`.`proyectos_status` = 1
+AND `proyectos`.`lat` IS NOT NULL AND `proyectos`.`lat` != '' AND `proyectos`.`lat` != '0'
+AND `proyectos`.`lng` IS NOT NULL AND `proyectos`.`lng` != '' AND `proyectos`.`lng` != '0'
+";
 
- ";
-
-// Variable para controlar si ya se agregó WHERE
-$hasWhere = false;
+// El SELECT ya tiene WHERE proyectos_status = 1, todos los filtros usan AND
+$hasWhere = true;
 
 // Filtro de SECTOR
 $sector = isset($_GET["sector"]) ? urldecode($_GET["sector"]) : "";
@@ -103,9 +116,10 @@ if ($search !== '') {
 	
 	// Campos que realmente existen en la tabla proyectos
 	$fields = [
-		'id', 'codigo_bip', 'nombre', 'descripcion', 'finicio', 'ftermino', 
-		'fuente', 'unidad_responsable', 'instituciones_vinculadas', 'lat', 'lng',
-		'proyectos_user'
+		'id', 'codigo_bip', 'codigo_idi', 'nombre', 'descripcion',
+		'lineamiento', 'objetivo', 'localizacion', 'sector', 'subsector',
+		'finicio', 'ftermino', 'fuente', 'instituciones_vinculadas',
+		'etapa', 'informacion', 'proyectos_user'
 	];
 	
 	$likeClauses = [];
@@ -115,7 +129,6 @@ if ($search !== '') {
 	
 	// También buscar en las tablas relacionadas (JOIN)
 	$likeClauses[] = "`sectores`.`sector_descripcion` LIKE '%$search%'";
-	$likeClauses[] = "`etapas`.`etapas_descripcion` LIKE '%$search%'";
 	$likeClauses[] = "`procesos`.`procesos_descripcion` LIKE '%$search%'";
 	
 	$sql .= implode(' OR ', $likeClauses);

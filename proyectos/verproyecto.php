@@ -24,7 +24,8 @@ $sql="SELECT
     ss.subsector_descripcion,
     e.etapas_descripcion,
     pr.procesos_descripcion,
-    a.area as unidad_responsable_area
+    a.area as unidad_responsable_area,
+    t.tipo as tipo_descripcion
 FROM proyectos p
 LEFT JOIN instrumentos i ON p.instrumento = i.instrumentos_id
 LEFT JOIN sectores s ON p.sector = s.sector_id
@@ -32,6 +33,7 @@ LEFT JOIN subsectores ss ON p.subsector = ss.subsector_id
 LEFT JOIN etapas e ON p.etapa = e.etapas_id
 LEFT JOIN procesos pr ON p.proceso = pr.procesos_id
 LEFT JOIN areas a ON p.unidad_responsable_id = a.id
+LEFT JOIN tipo t ON p.tipo = t.id
 WHERE p.id=".$_GET['proyectos_id'];
 
 if(!$result = $db->query($sql)){
@@ -360,6 +362,26 @@ function url(dire){
 </div>  
 <?php }?>
 
+<!-- LINEAMIENTO ESTRATÉGICO -->
+<?php if ($row["lineamiento"] <> ''){?>  
+<div class="row" style="width:100%!important;margin:0!important;">
+  <div class="col" style="width:100%!important;padding:5px!important;">
+    <label style="font-size:13px!important;padding:8px!important;margin:5px 0!important;font-weight:600!important;">LINEAMIENTO ESTRATÉGICO</label>
+    <div class="p5p" style="font-size:14px!important;padding:8px!important;line-height:1.5!important;"><?php echo htmlspecialchars($row["lineamiento"])?></div>      
+  </div>
+</div>  
+<?php }?>
+
+<!-- OBJETIVO ESTRATÉGICO -->
+<?php if ($row["objetivo"] <> ''){?>  
+<div class="row" style="width:100%!important;margin:0!important;">
+  <div class="col" style="width:100%!important;padding:5px!important;">
+    <label style="font-size:13px!important;padding:8px!important;margin:5px 0!important;font-weight:600!important;">OBJETIVO ESTRATÉGICO</label>
+    <div class="p5p" style="font-size:14px!important;padding:8px!important;line-height:1.5!important;"><?php echo htmlspecialchars($row["objetivo"])?></div>      
+  </div>
+</div>  
+<?php }?>
+
 <!-- SECTOR -->
 <?php if ($row["sector_descripcion"] <> ''){?>  
 <div class="row" style="width:100%!important;margin:0!important;">
@@ -380,35 +402,51 @@ function url(dire){
 </div>  
 <?php }?>
 
-<!-- CODIGO BIP -->
-<?php if ($row["codigo_bip"] <> ''){?>  
+<!-- CODIGO IDI -->
+<?php if ($row["codigo_idi"] <> ''){?>  
 <div class="row" style="width:100%!important;margin:0!important;">
   <div class="col" style="width:100%!important;padding:5px!important;">
-    <label style="font-size:13px!important;padding:8px!important;margin:5px 0!important;font-weight:600!important;">CÓDIGO BIP</label>
-    <div class="p5p" style="font-size:14px!important;padding:8px!important;line-height:1.5!important;"><?php echo $row["codigo_bip"]?></div>      
+    <label style="font-size:13px!important;padding:8px!important;margin:5px 0!important;font-weight:600!important;">CÓDIGO IDI</label>
+    <div class="p5p" style="font-size:14px!important;padding:8px!important;line-height:1.5!important;"><?php echo $row["codigo_idi"]?></div>      
+  </div>
+</div>  
+<?php }?>
+
+<!-- TIPO -->
+<?php if ($row["tipo_descripcion"] <> ''){?>  
+<div class="row" style="width:100%!important;margin:0!important;">
+  <div class="col" style="width:100%!important;padding:5px!important;">
+    <label style="font-size:13px!important;padding:8px!important;margin:5px 0!important;font-weight:600!important;">TIPO</label>
+    <div class="p5p" style="font-size:14px!important;padding:8px!important;line-height:1.5!important;"><?php echo $row["tipo_descripcion"]?></div>      
+  </div>
+</div>  
+<?php }?>
+
+<!-- LOCALIZACIÓN -->
+<?php if ($row["localizacion"] <> ''){?>  
+<div class="row" style="width:100%!important;margin:0!important;">
+  <div class="col" style="width:100%!important;padding:5px!important;">
+    <label style="font-size:13px!important;padding:8px!important;margin:5px 0!important;font-weight:600!important;">LOCALIZACIÓN</label>
+    <div class="p5p" style="font-size:14px!important;padding:8px!important;line-height:1.5!important;"><?php echo htmlspecialchars($row["localizacion"])?></div>      
   </div>
 </div>  
 <?php }?>
 
 <!-- DISEÑO M$ -->
-<?php if ($row["p_diseno"] > 0){?>  
 <div class="row" style="width:100%!important;margin:0!important;">
   <div class="col" style="width:100%!important;padding:5px!important;">
     <label style="font-size:13px!important;padding:8px!important;margin:5px 0!important;font-weight:600!important;">DISEÑO M$</label>
     <div class="p5p" style="font-size:14px!important;padding:8px!important;line-height:1.5!important;"><?php echo number_format($row["p_diseno"], 2, ',', '.')?></div>      
   </div>
-</div>  
-<?php }?>
+</div>
 
 <!-- EJECUCIÓN M$ -->
-<?php if ($row["p_ejecucion"] > 0){?>  
 <div class="row" style="width:100%!important;margin:0!important;">
   <div class="col" style="width:100%!important;padding:5px!important;">
     <label style="font-size:13px!important;padding:8px!important;margin:5px 0!important;font-weight:600!important;">EJECUCIÓN M$</label>
     <div class="p5p" style="font-size:14px!important;padding:8px!important;line-height:1.5!important;"><?php echo number_format($row["p_ejecucion"], 2, ',', '.')?></div>      
   </div>
-</div>  
-<?php }?>
+</div>
 
 <!-- ETAPA -->
 <?php if ($row["etapas_descripcion"] <> ''){?>  
@@ -620,10 +658,10 @@ var icn = L.icon({ iconUrl: 'pins/10.png', iconSize: [32, 32] });
 var pin=icn;
 
 <?php if($row["lat"] != '' && $row["lng"] != '') { ?>
-marker = L.marker([<?php echo $row["lng"];?>, <?php echo $row["lat"];?>], {icon: pin} ).addTo(layerGroup1)
+marker = L.marker([<?php echo $row["lat"];?>, <?php echo $row["lng"];?>], {icon: pin} ).addTo(layerGroup1)
 		.bindTooltip(function (layer) { return '<?php echo $row["nombre"];?>'; }, {opacity: 1}, { offset: L.Point(0,16) });
 
-map1.flyTo([<?php echo $row["lng"];?>, <?php echo $row["lat"];?>], 16)
+map1.flyTo([<?php echo $row["lat"];?>, <?php echo $row["lng"];?>], 16)
 <?php } ?>
 
 </script>
