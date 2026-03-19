@@ -60,6 +60,7 @@ $(document).ready(function() {
         'avance.php',
         'avancei.php',
         'cambiar_password.php',
+        'usuarios_editar.php',
     ];
 
     $paginas_area = [
@@ -70,6 +71,7 @@ $(document).ready(function() {
         'proyectos_editar.php',
         'actividades_editar.php',
         'cambiar_password.php',
+        'usuarios_editar.php',
     ];
 
     if ( ($perfil == "INVITADO") && (!in_array($script, $paginas_invitado))){

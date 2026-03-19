@@ -72,6 +72,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['task'])) {
         switch ($task) {
             case 'ELIMINAR':
                 $id = (int)$_POST['usuarios_id'];
+
+                // Perfiles restringidos no pueden eliminar usuarios
+                $perfil_sesion = $_SESSION['usuarios_profile'] ?? '';
+                if (in_array($perfil_sesion, ['ÁREA', 'INVITADO'])) {
+                    throw new Exception('No tiene permisos para eliminar usuarios');
+                }
                 
                 // Obtener foto actual antes de eliminar
                 $sql = "SELECT usuarios_foto FROM usuarios WHERE usuarios_id = ?";
@@ -108,9 +114,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['task'])) {
             case 'ACTUALIZAR':
                 $id = isset($_POST['usuarios_id']) ? (int)$_POST['usuarios_id'] : 0;
                 $es_nuevo_usuario = ($task === 'CREAR' || $id === 0);
+
+                // Perfiles restringidos: solo pueden actualizar su propio registro, nunca crear
+                $perfil_sesion = $_SESSION['usuarios_profile'] ?? '';
+                $es_restringido_api = in_array($perfil_sesion, ['ÁREA', 'INVITADO']);
+                if ($es_restringido_api) {
+                    if ($es_nuevo_usuario) {
+                        throw new Exception('No tiene permisos para crear usuarios');
+                    }
+                    $id_propio = (int)($_SESSION['net_fulltrust_fas_id'] ?? 0);
+                    if ($id !== $id_propio) {
+                        throw new Exception('No tiene permisos para modificar este usuario');
+                    }
+                }
                 
                 // Validar campos requeridos
-                $required_fields = ['usuarios_userid', 'usuarios_nombre', 'usuarios_email', 'usuarios_profile'];
+                // Para perfiles restringidos, usuarios_userid y usuarios_profile vienen de BD, no del POST
+                $required_fields = $es_restringido_api
+                    ? ['usuarios_nombre', 'usuarios_email']
+                    : ['usuarios_userid', 'usuarios_nombre', 'usuarios_email', 'usuarios_profile'];
                 foreach ($required_fields as $field) {
                     if (empty($_POST[$field])) {
                         throw new Exception("El campo $field es requerido");
@@ -123,6 +145,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['task'])) {
                 $usuarios_email   = trim($_POST['usuarios_email']);
                 $usuarios_profile = $_POST['usuarios_profile'];
                 $usuarios_status  = isset($_POST['usuarios_status']) ? (int)$_POST['usuarios_status'] : 1;
+
+                // Perfiles restringidos no pueden cambiar su propio perfil, estado ni userid
+                if ($es_restringido_api) {
+                    $sql_orig = "SELECT usuarios_userid, usuarios_profile, usuarios_status, usuarios_cambiarpassword FROM usuarios WHERE usuarios_id = ?";
+                    $stmt_orig = $db->prepare($sql_orig);
+                    $stmt_orig->bind_param("i", $id);
+                    $stmt_orig->execute();
+                    $row_orig = $stmt_orig->get_result()->fetch_assoc();
+                    if ($row_orig) {
+                        $usuarios_userid  = $row_orig['usuarios_userid'];
+                        $usuarios_profile = $row_orig['usuarios_profile'];
+                        $usuarios_status  = (int)$row_orig['usuarios_status'];
+                    }
+                }
                 
                 // Validar email
                 if (!filter_var($usuarios_email, FILTER_VALIDATE_EMAIL)) {
@@ -232,7 +268,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['task'])) {
                 }
                 
                 // Leer el flag de cambio de contraseña obligatorio (solo admin lo envía)
-                $forzar_cambio_password = isset($_POST['usuarios_cambiarpassword']) ? 1 : 0;
+                // Los perfiles restringidos conservan el valor actual de la BD
+                if ($es_restringido_api && isset($row_orig)) {
+                    $forzar_cambio_password = (int)$row_orig['usuarios_cambiarpassword'];
+                } else {
+                    $forzar_cambio_password = isset($_POST['usuarios_cambiarpassword']) ? 1 : 0;
+                }
 
                 // Ejecutar INSERT o UPDATE
                 if ($es_nuevo_usuario) {
@@ -274,22 +315,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['task'])) {
                     }
                     
                     // Manejar los instrumentos del usuario
-                    // Primero eliminar todos los instrumentos actuales del usuario
-                    $sql_delete  = "DELETE FROM usuarios_areas WHERE usuarios_id = ?";
-                    $stmt_delete = $db->prepare($sql_delete);
-                    $stmt_delete->bind_param("i", $id);
-                    $stmt_delete->execute();
-                    
-                    // Insertar los nuevos instrumentos seleccionados
-                    if (isset($_POST['instrumentos']) && is_array($_POST['instrumentos'])) {
-                        $sql_insert  = "INSERT INTO usuarios_areas (usuarios_id, instrumentos_id) VALUES (?, ?)";
-                        $stmt_insert = $db->prepare($sql_insert);
+                    // Los perfiles restringidos NO pueden modificar sus instrumentos asignados
+                    if (!$es_restringido_api) {
+                        // Primero eliminar todos los instrumentos actuales del usuario
+                        $sql_delete  = "DELETE FROM usuarios_areas WHERE usuarios_id = ?";
+                        $stmt_delete = $db->prepare($sql_delete);
+                        $stmt_delete->bind_param("i", $id);
+                        $stmt_delete->execute();
                         
-                        foreach ($_POST['instrumentos'] as $instrumento_id) {
-                            $instrumento_id = (int)$instrumento_id;
-                            if ($instrumento_id > 0) {
-                                $stmt_insert->bind_param("ii", $id, $instrumento_id);
-                                $stmt_insert->execute();
+                        // Insertar los nuevos instrumentos seleccionados
+                        if (isset($_POST['instrumentos']) && is_array($_POST['instrumentos'])) {
+                            $sql_insert  = "INSERT INTO usuarios_areas (usuarios_id, instrumentos_id) VALUES (?, ?)";
+                            $stmt_insert = $db->prepare($sql_insert);
+                            
+                            foreach ($_POST['instrumentos'] as $instrumento_id) {
+                                $instrumento_id = (int)$instrumento_id;
+                                if ($instrumento_id > 0) {
+                                    $stmt_insert->bind_param("ii", $id, $instrumento_id);
+                                    $stmt_insert->execute();
+                                }
                             }
                         }
                     }

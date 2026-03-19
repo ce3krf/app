@@ -3,7 +3,7 @@
 // Autor: Marcelo Jiménez
 // Fulltrust Software
 // https://www.fulltrust.net
-// Fecha última actualización: 2026-03-18
+// Fecha última actualización: 2026-03-19 10:12:32
 // ************************************************************
 
 @session_start();

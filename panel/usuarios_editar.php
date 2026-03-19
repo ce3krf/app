@@ -222,6 +222,7 @@ $imagen_src .= "?t=" . time();
                                     <?php if ($es_restringido): ?>
                                     <input type="text" class="form-control readonly-field"
                                            value="<?php echo htmlspecialchars($row['usuarios_profile']); ?>" readonly>
+                                    <input type="hidden" name="usuarios_profile" value="<?php echo htmlspecialchars($row['usuarios_profile']); ?>">
                                     <?php else: ?>
                                     <select class="form-control" id="usuarios_profile" name="usuarios_profile" required>
                                         <option value="INVITADO" <?php echo $row['usuarios_profile'] === 'INVITADO' ? 'selected' : ''; ?>>Invitado</option>
@@ -373,8 +374,8 @@ $imagen_src .= "?t=" . time();
                                 <div class="border rounded p-2" style="max-height: 220px; overflow-y: auto; background-color: #f8f9fa;">
                                     <?php foreach ($instrumentos_disponibles as $instrumento): ?>
                                     <div class="form-check mb-1">
-                                        <input class="form-check-input instrumento-checkbox" type="checkbox"
-                                               name="instrumentos[]"
+                                        <input class="form-check-input instrumento-checkbox" type="<?php echo $es_restringido ? 'checkbox' : 'checkbox'; ?>"
+                                               <?php echo !$es_restringido ? 'name="instrumentos[]"' : ''; ?>
                                                value="<?php echo $instrumento['instrumentos_id']; ?>"
                                                id="instrumento_<?php echo $instrumento['instrumentos_id']; ?>"
                                                <?php echo in_array($instrumento['instrumentos_id'], $instrumentos_usuario) ? 'checked' : ''; ?>
