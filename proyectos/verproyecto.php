@@ -342,6 +342,16 @@ function url(dire){
   </div>  
 <?php }?>    
 
+<!-- PLAN MAESTRO -->
+<?php if ($row["plan_maestro"] <> ''){?>  
+<div class="row" style="width:100%!important;margin:0!important;">
+    <div class="col" style="width:100%!important;padding:5px!important;">
+      <label style="font-size:13px!important;padding:8px!important;margin:5px 0!important;font-weight:600!important;">PLAN MAESTRO</label>
+      <div class="p5p" style="font-size:14px!important;padding:8px!important;line-height:1.5!important;"><?php echo ($row["plan_maestro"] == 'Si') ? 'Sí' : 'No' ?></div>      
+    </div>
+  </div>  
+<?php }?>
+
 <!-- DESCRIPCIÓN -->
 <?php if ($row["descripcion"] <> ''){?>  
 <div class="row" style="width:100%!important;margin:0!important;">

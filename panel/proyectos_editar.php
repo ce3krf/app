@@ -427,6 +427,25 @@ while($obj = $objetivos_res->fetch_assoc()){
 
 <!----------------------> 
 <div class="row">
+<div class="col-md-3">
+
+ <div class="form-group">
+   <label for="plan_maestro">PLAN MAESTRO</label>
+   <select class="form-select" name="plan_maestro" id="plan_maestro">
+     <option value="">Seleccione...</option>
+     <option value="Si"  <?php if($row["plan_maestro"] == 'Si')  echo 'selected'; ?>>Sí</option>
+     <option value="No"  <?php if($row["plan_maestro"] == 'No')  echo 'selected'; ?>>No</option>
+   </select>
+   <small class="text-muted">Indique si la iniciativa forma parte de un plan maestro.</small>
+ </div>
+
+</div>  
+</div>
+<!----------------------> 
+
+
+<!----------------------> 
+<div class="row">
 <div class="col">
 
  <div class="form-group">
@@ -819,6 +838,18 @@ while($obj = $objetivos_res->fetch_assoc()){
 </h6>
 </div>
 </div>
+
+<!----------------------> 
+<div class="row">
+  <div class="col-12">
+    <div class="form-group">
+      <label for="localizacion">LOCALIZACIÓN</label>
+      <input type="text" class="form-control" id="localizacion" name="localizacion" value="<?php echo htmlspecialchars($row['localizacion'] ?? ''); ?>" maxlength="255">
+      <small class="text-muted">Descripción textual de la ubicación o área geográfica de la iniciativa.</small>
+    </div>
+  </div>
+</div>
+<!---------------------->
 
 <!----------------------> 
 <div class="row">

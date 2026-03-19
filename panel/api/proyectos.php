@@ -67,6 +67,7 @@ if ( isset($_GET["task"]) && $_GET["task"] == "list" ) {
             p.instrumento,
             p.preseleccionado,
             p.nombre,
+            p.plan_maestro,
             p.lineamiento_id,
             p.lineamiento,
             p.objetivo_id,
@@ -177,6 +178,7 @@ if ( isset($_POST["task"]) && $_POST["task"] == "update" ) {
 
     $sql  = "UPDATE proyectos SET ";
     $sql .= "nombre                  = '" . $esc('nombre')                  . "', ";
+    $sql .= "plan_maestro            = '" . $esc('plan_maestro')            . "', ";
     $sql .= "descripcion             = '" . $esc('descripcion')             . "', ";
     $sql .= "instrumento             = '" . $esc('instrumento')             . "', ";
     $sql .= "preseleccionado         = '" . $esc('preseleccionado')         . "', ";
@@ -287,6 +289,7 @@ if ( isset($_POST["task"]) && $_POST["task"] == "insert" ) {
 
     $sql  = "UPDATE proyectos SET ";
     $sql .= "nombre                  = '" . $esc('nombre')                  . "', ";
+    $sql .= "plan_maestro            = '" . $esc('plan_maestro')            . "', ";
     $sql .= "descripcion             = '" . $esc('descripcion')             . "', ";
     $sql .= "instrumento             = '" . $esc('instrumento')             . "', ";
     $sql .= "preseleccionado         = '" . $esc('preseleccionado')         . "', ";

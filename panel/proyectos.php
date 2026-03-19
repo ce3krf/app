@@ -91,41 +91,43 @@ $(document).ready(function() {
         processing:  true,
 
         columnDefs: [
-            { targets: 0,  visible: true,  width: "4%"  },   // VER
-            { targets: 1,  visible: true,  width: "32%" },   // nombre
-            { targets: 2,  visible: true,  width: "14%" },   // sector
-            { targets: 3,  visible: true,  width: "14%" },   // etapa
-            { targets: 4,  visible: true,  width: "14%" },   // proceso
-            { targets: 5,  visible: true,  width: "7%"  },   // finicio
-            { targets: 6,  visible: true,  width: "7%"  },   // ftermino
-            { targets: 7,  visible: false },   // unidad_responsable
-            { targets: 8,  visible: false },   // instrumento
-            { targets: 9,  visible: false },   // preseleccionado
-            { targets: 10, visible: false },   // lineamiento_id
-            { targets: 11, visible: false },   // lineamiento
-            { targets: 12, visible: false },   // objetivo_id
-            { targets: 13, visible: false },   // objetivo
-            { targets: 14, visible: false },   // brecha
-            { targets: 15, visible: false },   // descripcion
-            { targets: 16, visible: false },   // localizacion
-            { targets: 17, visible: false },   // subsector
-            { targets: 18, visible: false },   // tipo
-            { targets: 19, visible: false },   // impacto_territorial
-            { targets: 20, visible: false },   // foco_turismo
-            { targets: 21, visible: false },   // codigo_idi
-            { targets: 22, visible: false },   // p_diseno
-            { targets: 23, visible: false },   // p_ejecucion
-            { targets: 24, visible: false },   // total
-            { targets: 25, visible: false },   // fuente
-            { targets: 26, visible: false },   // instituciones_vinculadas
-            { targets: 27, visible: false },   // beneficiarios
-            { targets: 28, visible: false },   // informacion
-            { targets: 29, visible: false },   // avance_financiero
-            { targets: 30, visible: false },   // avance_actividades
-            { targets: 31, visible: false },   // lat
-            { targets: 32, visible: false },   // lng
-            { targets: 33, visible: false },   // proyectos_user
-            { targets: 34, visible: false },   // proyectos_created
+            { targets: 0,  visible: true,  width: "4%"  },                            // VER
+            { targets: 1,  visible: true,  width: "26%" },                            // nombre
+            { targets: 2,  visible: true,  width: "12%" },                            // sector
+            { targets: 3,  visible: true,  width: "12%" },                            // etapa
+            { targets: 4,  visible: true,  width: "12%" },                            // proceso
+            { targets: 5,  visible: true,  width: "6%"  },                            // finicio
+            { targets: 6,  visible: true,  width: "6%"  },                            // ftermino
+            { targets: 7,  visible: true,  width: "5%", className: 'text-center' },   // plan
+            { targets: 8,  visible: true,  width: "5%", className: 'text-center' },   // geo
+            { targets: 9,  visible: false },   // unidad_responsable
+            { targets: 10, visible: false },   // instrumento
+            { targets: 11, visible: false },   // preseleccionado
+            { targets: 12, visible: false },   // lineamiento_id
+            { targets: 13, visible: false },   // lineamiento
+            { targets: 14, visible: false },   // objetivo_id
+            { targets: 15, visible: false },   // objetivo
+            { targets: 16, visible: false },   // brecha
+            { targets: 17, visible: false },   // descripcion
+            { targets: 18, visible: false },   // localizacion
+            { targets: 19, visible: false },   // subsector
+            { targets: 20, visible: false },   // tipo
+            { targets: 21, visible: false },   // impacto_territorial
+            { targets: 22, visible: false },   // foco_turismo
+            { targets: 23, visible: false },   // codigo_idi
+            { targets: 24, visible: false },   // p_diseno
+            { targets: 25, visible: false },   // p_ejecucion
+            { targets: 26, visible: false },   // total
+            { targets: 27, visible: false },   // fuente
+            { targets: 28, visible: false },   // instituciones_vinculadas
+            { targets: 29, visible: false },   // beneficiarios
+            { targets: 30, visible: false },   // informacion
+            { targets: 31, visible: false },   // avance_financiero
+            { targets: 32, visible: false },   // avance_actividades
+            { targets: 33, visible: false },   // lat
+            { targets: 34, visible: false },   // lng
+            { targets: 35, visible: false },   // proyectos_user
+            { targets: 36, visible: false },   // proyectos_created
         ],
 
         "sAjaxSource": "api/proyectos.php?token=" + token + "&task=list",
@@ -138,6 +140,8 @@ $(document).ready(function() {
             { mData: 'procesos_descripcion' },
             { mData: 'finicio' },
             { mData: 'ftermino' },
+            { mData: mixPlan,                  className: 'no-export' },
+            { mData: mixGeo,                   className: 'no-export' },
             { mData: 'unidad_responsable' },
             { mData: 'instrumento' },
             { mData: 'preseleccionado' },
@@ -223,6 +227,20 @@ $(document).ready(function() {
                '<img src="img/document.png" width="32"></a>';
     }
 
+    function mixPlan(data) {
+        var esSi = (data.plan_maestro === 'Si');
+        var color = esSi ? '#4a8f5e' : '#aaa';
+        var texto = esSi ? 'Sí' : 'No';
+        return '<span style="color:' + color + '; font-weight:600">' + texto + '</span>';
+    }
+
+    function mixGeo(data) {
+        var tieneGeo = (data.lat && data.lat !== '' && data.lng && data.lng !== '');
+        var color = tieneGeo ? '#4a8ecd' : '#aaa';
+        var texto = tieneGeo ? 'Sí' : 'No';
+        return '<span style="color:' + color + '; font-weight:600">' + texto + '</span>';
+    }
+
     $('#tabla').on('error.dt', function(e, settings, techNote, message) {
         console.log('DataTables error: ', message);
     });
@@ -275,12 +293,14 @@ function ayuda(){
                         <tr>
                             <!-- Visibles -->
                             <th style="width:4%">VER</th>
-                            <th style="width:32%">Nombre</th>
-                            <th style="width:14%">Sector</th>
-                            <th style="width:14%">Etapa</th>
-                            <th style="width:14%">Proceso</th>
-                            <th style="width:7%">Inicio</th>
-                            <th style="width:7%">Término</th>
+                            <th style="width:26%">Nombre</th>
+                            <th style="width:12%">Sector</th>
+                            <th style="width:12%">Etapa</th>
+                            <th style="width:12%">Proceso</th>
+                            <th style="width:6%">Inicio</th>
+                            <th style="width:6%">Término</th>
+                            <th style="width:5%">Plan</th>
+                            <th style="width:5%">Geo</th>
                             <!-- Ocultas / solo Excel -->
                             <th>Responsable</th>
                             <th>Instrumento</th>
