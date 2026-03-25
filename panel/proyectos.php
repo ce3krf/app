@@ -66,7 +66,7 @@ $(document).ready(function() {
     var tabla = $('#tabla').DataTable({
 
         initComplete: function(settings, json) {
-            agregarFiltroSector();
+            agregarFiltros();
         },
 
         searching: true,
@@ -128,6 +128,7 @@ $(document).ready(function() {
             { targets: 34, visible: false },   // lng
             { targets: 35, visible: false },   // proyectos_user
             { targets: 36, visible: false },   // proyectos_created
+            { targets: 37, visible: false },   // plan_maestro (raw, para filtro)
         ],
 
         "sAjaxSource": "api/proyectos.php?token=" + token + "&task=list",
@@ -170,6 +171,7 @@ $(document).ready(function() {
             { mData: 'lng' },
             { mData: 'proyectos_user' },
             { mData: 'proyectos_created' },
+            { mData: 'plan_maestro' },   // índice 37 — valor raw para filtro
         ],
 
         "language": {
@@ -199,13 +201,23 @@ $(document).ready(function() {
         }
     });
 
-    function agregarFiltroSector() {
+    function agregarFiltros() {
         if ($("#filtroSector").length === 0) {
             $("#tabla_wrapper .top").prepend(
+                '<label style="margin-right:15px">Plan Maestro:&nbsp;' +
+                '<select id="filtroPlan">' +
+                    '<option value="">Todos</option>' +
+                    '<option value="Si">Sí</option>' +
+                    '<option value="No">No</option>' +
+                '</select></label>' +
                 '<label style="margin-right:15px">Sector:&nbsp;' +
-                '<select id="filtroSector"><option value="">Todos</option></select></label>'
+                '<select id="filtroSector"><option value="">Todos</option></select></label>' +
+                '<label style="margin-right:15px">Proceso:&nbsp;' +
+                '<select id="filtroProceso"><option value="">Todos</option></select></label>'
             );
         }
+
+        // Poblar opciones de Sector
         var sectores = [];
         tabla.column(2).data().each(function(value) {
             if (value && sectores.indexOf(value) === -1) sectores.push(value);
@@ -213,8 +225,39 @@ $(document).ready(function() {
         sectores.sort().forEach(function(s) {
             $("#filtroSector").append('<option value="' + s + '">' + s + '</option>');
         });
+
+        // Poblar opciones de Proceso
+        var procesos = [];
+        tabla.column(4).data().each(function(value) {
+            if (value && procesos.indexOf(value) === -1) procesos.push(value);
+        });
+        procesos.sort().forEach(function(p) {
+            $("#filtroProceso").append('<option value="' + p + '">' + p + '</option>');
+        });
+
+        // Filtro Sector
         $("#filtroSector").on("change", function() {
             tabla.column(2).search($(this).val()).draw();
+        });
+
+        // Filtro Proceso
+        $("#filtroProceso").on("change", function() {
+            var val = $(this).val();
+            tabla.column(4).search(
+                val === '' ? '' : '^' + $.fn.dataTable.util.escapeRegex(val) + '$',
+                true,   // regex
+                false   // smart search off
+            ).draw();
+        });
+
+        // Filtro Plan Maestro (columna 37 con valor raw Si/No)
+        $("#filtroPlan").on("change", function() {
+            var val = $(this).val();
+            tabla.column(37).search(
+                val === '' ? '' : '^' + val + '$',
+                true,   // regex
+                false   // smart search off
+            ).draw();
         });
     }
 
@@ -330,6 +373,7 @@ function ayuda(){
                             <th>Longitud</th>
                             <th>Usuario</th>
                             <th>Fecha Creación</th>
+                            <th>Plan Maestro Raw</th>
                         </tr>
                     </thead>
                     <tbody></tbody>

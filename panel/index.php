@@ -85,106 +85,156 @@ function exportarAExcel(datos, nombreArchivo, nombreHoja) {
 
             <div id="pprint">
 <?php
-// Obtener estadísticas generales usando la misma lógica de avance financiero
+// ---------------------------------------
+// Todas las métricas del dashboard se calculan en tiempo real desde la tabla actividades.
+// No se usa proyectos.avance_actividades ni proyectos.avance_financiero para el dashboard,
+// ya que esos campos solo se actualizan al cargar esta página y no reflejan cambios
+// hechos desde otras páginas (edición de actividades).
+// Unidades: actividades.monto e proyectos.p_diseno/p_ejecucion están en miles de pesos.
+// Para mostrar en M$ se divide por 1.000.
+// ---------------------------------------
+
+// Actualizar proyectos.avance_actividades y avance_financiero en segundo plano
+// (para que las fichas individuales de proyecto también muestren valores actualizados)
+try {
+    $result_proy = $db->query("SELECT id FROM proyectos WHERE proyectos_status = 1");
+    if ($result_proy) {
+        while ($proy = $result_proy->fetch_assoc()) {
+            $pid = (int) $proy['id'];
+            $s1 = $db->prepare("SELECT COUNT(*) as tot, COALESCE(SUM(monto),0) as monto_tot FROM actividades WHERE proyecto = ?");
+            $s1->bind_param('i', $pid); $s1->execute();
+            $r1 = $s1->get_result()->fetch_assoc(); $s1->close();
+
+            $s2 = $db->prepare("SELECT COUNT(*) as comp, COALESCE(SUM(monto),0) as monto_comp FROM actividades WHERE proyecto = ? AND estado = 'Completa'");
+            $s2->bind_param('i', $pid); $s2->execute();
+            $r2 = $s2->get_result()->fetch_assoc(); $s2->close();
+
+            $av_act = ($r1['tot']       > 0) ? round($r2['comp']       / $r1['tot']       * 100, 2) : 0;
+            $av_fin = ($r1['monto_tot'] > 0) ? round($r2['monto_comp'] / $r1['monto_tot'] * 100, 2) : 0;
+
+            $su = $db->prepare("UPDATE proyectos SET avance_actividades = ?, avance_financiero = ? WHERE id = ?");
+            $su->bind_param('ddi', $av_act, $av_fin, $pid); $su->execute(); $su->close();
+        }
+        $result_proy->close();
+    }
+} catch (Exception $e) {
+    error_log("Error actualizando avances: " . $e->getMessage());
+}
+
+// ESTADÍSTICAS GENERALES
 $stats = [
-    'total_proyectos' => 0,
-    'presupuesto_total' => 0,
-    'monto_invertido' => 0,
-    'promedio_avance_actividades' => 0,
-    'promedio_avance_financiero' => 0
+    'total_proyectos'           => 0,
+    'presupuesto_total'         => 0,
+    'monto_invertido'           => 0,
+    'promedio_avance_financiero'=> 0
 ];
 
-// Estadísticas consolidadas (presupuesto e inversión real)
-$query_stats = "SELECT 
-    COUNT(DISTINCT p.id) as total_proyectos,
-    COALESCE(SUM(p.p_diseno + p.p_ejecucion), 0) as presupuesto_total,
-    COALESCE(SUM(CASE WHEN a.estado = 'Completa' THEN a.monto ELSE 0 END), 0) as monto_invertido
-FROM proyectos p
-LEFT JOIN actividades a ON p.id = a.proyecto
-WHERE p.proyectos_status = 1";
-
-$result_stats = $db->query($query_stats);
-if ($result_stats && $row_stats = $result_stats->fetch_assoc()) {
-    $stats['total_proyectos'] = $row_stats['total_proyectos'];
-    $stats['presupuesto_total'] = $row_stats['presupuesto_total'];
-    $stats['monto_invertido'] = $row_stats['monto_invertido'];
-    
-    // Calcular porcentaje de avance financiero real
-    if ($stats['presupuesto_total'] > 0) {
-        $stats['promedio_avance_financiero'] = ($stats['monto_invertido'] / $stats['presupuesto_total']) * 100;
-    }
+// Total proyectos y presupuesto
+$r = $db->query("SELECT COUNT(id) as total_proyectos,
+    COALESCE(SUM(COALESCE(p_diseno,0) + COALESCE(p_ejecucion,0)), 0) as presupuesto_total
+FROM proyectos WHERE proyectos_status = 1");
+if ($r && $row = $r->fetch_assoc()) {
+    $stats['total_proyectos']   = $row['total_proyectos'];
+    $stats['presupuesto_total'] = $row['presupuesto_total'];
 }
 
-// Promedio de avance de actividades (porcentaje de actividades completas)
-$query_avance_act = "SELECT 
-    COALESCE(
-        (SUM(CASE WHEN a.estado = 'Completa' THEN 1 ELSE 0 END) / NULLIF(COUNT(a.id), 0)) * 100, 
-        0
-    ) as promedio_avance_actividades
-FROM proyectos p
-LEFT JOIN actividades a ON p.id = a.proyecto
-WHERE p.proyectos_status = 1";
-
-$result_avance_act = $db->query($query_avance_act);
-if ($result_avance_act && $row_avance = $result_avance_act->fetch_assoc()) {
-    $stats['promedio_avance_actividades'] = $row_avance['promedio_avance_actividades'];
+// Monto invertido: suma de actividades Completa en tiempo real
+$r = $db->query("SELECT COALESCE(SUM(a.monto), 0) as monto_invertido
+FROM actividades a
+INNER JOIN proyectos p ON p.id = a.proyecto
+WHERE p.proyectos_status = 1 AND a.estado = 'Completa'");
+if ($r && $row = $r->fetch_assoc()) {
+    $stats['monto_invertido'] = $row['monto_invertido'];
 }
 
-// Obtener avances por sector
-$query_sectores_avance = "SELECT 
+// Avance financiero global = monto invertido / presupuesto total
+if ($stats['presupuesto_total'] > 0) {
+    $stats['promedio_avance_financiero'] = ($stats['monto_invertido'] / $stats['presupuesto_total']) * 100;
+}
+
+// AVANCES POR SECTOR — todo calculado en tiempo real desde actividades
+// proyectos.sector es INT (FK a sectores.sector_id)
+$query_sectores_avance = "SELECT
     s.sector_id,
     s.sector_descripcion,
     s.sector_color,
-    COALESCE(
-        (SUM(CASE WHEN a.estado = 'Completa' THEN 1 ELSE 0 END) / NULLIF(COUNT(a.id), 0)) * 100, 
-        0
-    ) as avance_actividades,
-    COALESCE(SUM(p.p_diseno + p.p_ejecucion), 0) as presupuesto_sector,
-    COALESCE(SUM(CASE WHEN a.estado = 'Completa' THEN a.monto ELSE 0 END), 0) as monto_invertido_sector
+    COALESCE(act.avance_actividades_sector, 0) as avance_actividades,
+    COALESCE(fin.avance_financiero_sector, 0)  as avance_financiero_sector
 FROM sectores s
-LEFT JOIN proyectos p ON s.sector_id = p.sector AND p.proyectos_status = 1
-LEFT JOIN actividades a ON p.id = a.proyecto
-GROUP BY s.sector_id, s.sector_descripcion, s.sector_color
+-- Avance actividades: promedio por proyecto (completas/total)
+LEFT JOIN (
+    SELECT p.sector,
+           AVG(sub.avance_act) as avance_actividades_sector
+    FROM (
+        SELECT a.proyecto,
+               SUM(CASE WHEN a.estado = 'Completa' THEN 1 ELSE 0 END) / COUNT(*) * 100 as avance_act
+        FROM actividades a
+        GROUP BY a.proyecto
+    ) sub
+    INNER JOIN proyectos p ON p.id = sub.proyecto
+    WHERE p.proyectos_status = 1
+    GROUP BY p.sector
+) act ON act.sector = s.sector_id
+-- Avance financiero: promedio por proyecto (monto_completo/presupuesto_proyecto)
+-- Cada proyecto pesa igual, evita que un proyecto grande distorsione el sector
+LEFT JOIN (
+    SELECT p.sector,
+           AVG(sub.avance_fin) as avance_financiero_sector
+    FROM (
+        SELECT a.proyecto,
+               CASE
+                   WHEN (COALESCE(p2.p_diseno,0) + COALESCE(p2.p_ejecucion,0)) > 0
+                   THEN SUM(CASE WHEN a.estado = 'Completa' THEN a.monto ELSE 0 END)
+                        / (COALESCE(p2.p_diseno,0) + COALESCE(p2.p_ejecucion,0)) * 100
+                   ELSE 0
+               END as avance_fin
+        FROM actividades a
+        INNER JOIN proyectos p2 ON p2.id = a.proyecto
+        WHERE p2.proyectos_status = 1
+        GROUP BY a.proyecto, p2.p_diseno, p2.p_ejecucion
+    ) sub
+    INNER JOIN proyectos p ON p.id = sub.proyecto
+    WHERE p.proyectos_status = 1
+    GROUP BY p.sector
+) fin ON fin.sector = s.sector_id
 ORDER BY s.sector_descripcion";
 
 $sectores_avance = [];
 $result_sectores = $db->query($query_sectores_avance);
 if ($result_sectores) {
     while ($row_sector_avance = $result_sectores->fetch_assoc()) {
-        $avance_financiero = 0;
-        if ($row_sector_avance['presupuesto_sector'] > 0) {
-            $avance_financiero = ($row_sector_avance['monto_invertido_sector'] / $row_sector_avance['presupuesto_sector']) * 100;
-        }
-        $row_sector_avance['avance_financiero'] = $avance_financiero;
+        $row_sector_avance['avance_financiero'] = $row_sector_avance['avance_financiero_sector'];
         $sectores_avance[] = $row_sector_avance;
     }
 }
+
+
 ?>
 
 <!-- Tarjetas de Estadísticas -->
 <div class="row mb-4">
     <div class="col-md-3">
         <div class="stat-card stat-card-1">
-            <h3><?php echo $stats['total_proyectos']; ?></h3>
+            <h4><?php echo $stats['total_proyectos']; ?></h4>
             <p><i class="fas fa-project-diagram"></i> Total Iniciativas</p>
         </div>
     </div>
     <div class="col-md-3">
         <div class="stat-card stat-card-2">
-            <h3>$<?php echo number_format($stats['presupuesto_total'] / 1000000, 1); ?>M</h3>
+            <h4>$<?php echo number_format($stats['presupuesto_total'] / 1000, 1); ?>M</h4>
             <p><i class="fas fa-file-invoice-dollar"></i> Presupuesto Total</p>
         </div>
     </div>
     <div class="col-md-3">
         <div class="stat-card stat-card-3">
-            <h3>$<?php echo number_format($stats['monto_invertido'] / 1000000, 1); ?>M</h3>
+            <h4>$<?php echo number_format($stats['monto_invertido'] / 1000, 1); ?>M</h4>
             <p><i class="fas fa-dollar-sign"></i> Monto Invertido</p>
         </div>
     </div>
     <div class="col-md-3">
         <div class="stat-card stat-card-4">
-            <h3><?php echo round($stats['promedio_avance_actividades'], 1); ?>%</h3>
-            <p><i class="fas fa-tasks"></i> Avance Promedio</p>
+            <h4><?php echo round($stats["promedio_avance_financiero"], 1); ?>%</h4>
+            <p><i class="fas fa-percentage"></i> Avance Financiero</p>
         </div>
     </div>
 </div>
@@ -300,7 +350,7 @@ if ($result_sectores) {
 $query_top = "SELECT 
     p.id,
     p.nombre,
-    COALESCE(p.p_diseno + p.p_ejecucion, 0) as presupuesto,
+    COALESCE(p.p_diseno,0) + COALESCE(p.p_ejecucion,0) as presupuesto,
     COALESCE(SUM(CASE WHEN a.estado = 'Completa' THEN a.monto ELSE 0 END), 0) as monto_invertido,
     COUNT(a.id) as total_actividades,
     SUM(CASE WHEN a.estado = 'Completa' THEN 1 ELSE 0 END) as actividades_completas,
@@ -309,16 +359,15 @@ $query_top = "SELECT
         ELSE 0 
     END as avance_actividades,
     CASE 
-        WHEN (p.p_diseno + p.p_ejecucion) > 0 
-        THEN (SUM(CASE WHEN a.estado = 'Completa' THEN a.monto ELSE 0 END) / (p.p_diseno + p.p_ejecucion)) * 100
+        WHEN (COALESCE(p.p_diseno,0) + COALESCE(p.p_ejecucion,0)) > 0
+        THEN (SUM(CASE WHEN a.estado = 'Completa' THEN a.monto ELSE 0 END) / (COALESCE(p.p_diseno,0) + COALESCE(p.p_ejecucion,0))) * 100
         ELSE 0 
     END as avance_financiero
 FROM proyectos p
-LEFT JOIN actividades a ON p.id = a.proyecto
+INNER JOIN actividades a ON p.id = a.proyecto
 WHERE p.proyectos_status = 1
 GROUP BY p.id, p.nombre, p.p_diseno, p.p_ejecucion
-HAVING presupuesto > 0
-ORDER BY avance_financiero DESC
+ORDER BY avance_actividades DESC, avance_financiero DESC
 LIMIT 5";
 $result_top = $db->query($query_top);
 ?>
@@ -632,6 +681,11 @@ $result_top = $db->query($query_top);
                 const counts = data.map(item => item.cuantos);
 
                 const ctx = document.getElementById('porProceso').getContext('2d');
+                // Ajustar altura del contenedor según cantidad de procesos
+                const alturaMinPorBarra = 50;
+                const alturaMinima = 300;
+                const alturaNecesaria = Math.max(alturaMinima, procesos.length * alturaMinPorBarra);
+                document.getElementById('porProceso').parentElement.style.height = alturaNecesaria + 'px';
                 new Chart(ctx, {
                     type: 'bar',
                     data: {
@@ -660,6 +714,40 @@ $result_top = $db->query($query_top);
                                 ticks: {
                                     stepSize: 1
                                 }
+                            },
+                            y: {
+                                ticks: {
+                                    autoSkip: false,
+                                    crossAlign: 'far',
+                                    font: {
+                                        size: 12
+                                    },
+                                    callback: function(value, index) {
+                                        const label = procesos[index];
+                                        if (!label) return '';
+                                        // Dividir etiquetas largas en múltiples líneas
+                                        const maxLen = 35;
+                                        if (label.length <= maxLen) return label;
+                                        const words = label.split(' ');
+                                        const lines = [];
+                                        let current = '';
+                                        words.forEach(word => {
+                                            if ((current + ' ' + word).trim().length <= maxLen) {
+                                                current = (current + ' ' + word).trim();
+                                            } else {
+                                                if (current) lines.push(current);
+                                                current = word;
+                                            }
+                                        });
+                                        if (current) lines.push(current);
+                                        return lines;
+                                    }
+                                }
+                            }
+                        },
+                        layout: {
+                            padding: {
+                                left: 10
                             }
                         }
                     }
@@ -674,91 +762,7 @@ $result_top = $db->query($query_top);
     });
 </script>
 
-<?php
-// ---------------------------------------
-// ACTUALIZAR AVANCES DE TODOS LOS PROYECTOS
-// ---------------------------------------
 
-try {
-    // Obtener todos los proyectos
-    $sql_proyectos = "SELECT id FROM proyectos WHERE proyectos_status = 1";
-    $result_proyectos = $db->query($sql_proyectos);
-
-    if ($result_proyectos && $result_proyectos->num_rows > 0) {
-        while ($proyecto = $result_proyectos->fetch_assoc()) {
-
-            $codigo_proyecto = (int) $proyecto['id'];
-
-            // 1️⃣ Totales del proyecto
-            $query_total = "
-                SELECT 
-                    COUNT(*) AS total_actividades,
-                    COALESCE(SUM(monto), 0) AS total_monto
-                FROM actividades
-                WHERE proyecto = ?
-            ";
-            $stmt_total = $db->prepare($query_total);
-            $stmt_total->bind_param('i', $codigo_proyecto);
-            $stmt_total->execute();
-            $result_total = $stmt_total->get_result();
-            $row_total = $result_total->fetch_assoc();
-
-            $total_actividades = (int) $row_total['total_actividades'];
-            $total_monto = (float) $row_total['total_monto'];
-            $stmt_total->close();
-
-            // 2️⃣ Actividades completas del proyecto
-            $query_completas = "
-                SELECT 
-                    COUNT(*) AS completadas,
-                    COALESCE(SUM(monto), 0) AS monto_completo
-                FROM actividades
-                WHERE proyecto = ? AND estado = 'Completa'
-            ";
-            $stmt_completas = $db->prepare($query_completas);
-            $stmt_completas->bind_param('i', $codigo_proyecto);
-            $stmt_completas->execute();
-            $result_completas = $stmt_completas->get_result();
-            $row_completas = $result_completas->fetch_assoc();
-
-            $actividades_completas = (int) $row_completas['completadas'];
-            $monto_completo = (float) $row_completas['monto_completo'];
-            $stmt_completas->close();
-
-            // 3️⃣ Cálculos
-            $avance_actividades = ($total_actividades > 0)
-                ? ($actividades_completas / $total_actividades) * 100
-                : 0;
-
-            $avance_financiero = ($total_monto > 0)
-                ? ($monto_completo / $total_monto) * 100
-                : 0;
-
-            $avance_actividades = round($avance_actividades, 2);
-            $avance_financiero  = round($avance_financiero, 2);
-
-            // 4️⃣ Actualizar proyecto
-            $update = "
-                UPDATE proyectos 
-                SET avance_financiero = ?, avance_actividades = ?
-                WHERE id = ?
-            ";
-            $stmt_update = $db->prepare($update);
-            $stmt_update->bind_param('ddi', $avance_financiero, $avance_actividades, $codigo_proyecto);
-            $stmt_update->execute();
-            $stmt_update->close();
-        }
-    }
-
-    // Cerrar resultados
-    if ($result_proyectos) $result_proyectos->close();
-
-} catch (Exception $e) {
-    // Modo silencioso: no mostrar errores al usuario,
-    // pero puedes registrar el problema en un log.
-    error_log("Error actualizando avances: " . $e->getMessage());
-}
-?>
                 </div>
             </div>
             

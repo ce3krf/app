@@ -172,15 +172,7 @@ $row_subsectores = $subsectores->fetch_assoc();
 
 
 
-// Actualizar el campo avance_actividades en la tabla proyectos
-$query_update = "UPDATE proyectos SET avance_actividades = ?, avance_financiero = ? WHERE id = ?";
-$stmt_update = $db->prepare($query_update);
-$stmt_update->bind_param('dds', $porcentaje_completadas, $avance_financiero, $codigo_proyecto);
-if ($stmt_update->execute()) {
-    //echo "El avance de actividades se actualizó correctamente.";
-} else {
-    echo "Error al actualizar el avance de actividades: " . $stmt_update->error;
-}
+
 
 
 
@@ -312,6 +304,144 @@ while($obj = $objetivos_res->fetch_assoc()){
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet">
 
 <link rel="stylesheet" type="text/css" href="css/styles.css"/>
+
+<!-- Leaflet OSM -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+
+<!-- Modal Mapa Geolocalización -->
+<style>
+#geoModal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: rgba(0,0,0,.55);
+    backdrop-filter: blur(3px);
+    align-items: center;
+    justify-content: center;
+}
+#geoModal.active {
+    display: flex;
+}
+#geoModalBox {
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.35);
+    width: min(820px, 96vw);
+    max-height: 92vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: geoSlideIn .22s ease;
+}
+@keyframes geoSlideIn {
+    from { transform: translateY(-30px); opacity: 0; }
+    to   { transform: translateY(0);     opacity: 1; }
+}
+#geoModalHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px 14px;
+    background: linear-gradient(135deg, #023047 0%, #1a5276 100%);
+    color: #fff;
+    flex-shrink: 0;
+}
+#geoModalHeader h6 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: .3px;
+}
+#geoModalHeader p {
+    margin: 2px 0 0;
+    font-size: 12px;
+    opacity: .75;
+}
+#geoModalClose {
+    background: rgba(255,255,255,.18);
+    border: none;
+    border-radius: 50%;
+    width: 32px; height: 32px;
+    cursor: pointer;
+    color: #fff;
+    font-size: 16px;
+    line-height: 32px;
+    text-align: center;
+    transition: background .15s;
+    flex-shrink: 0;
+}
+#geoModalClose:hover { background: rgba(255,255,255,.32); }
+#geoMapContainer {
+    flex: 1;
+    min-height: 420px;
+    height: 420px;
+    position: relative;
+    cursor: crosshair;
+}
+#geoMap {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    width: 100%;
+    height: 100%;
+}
+#geoToast {
+    display: none;
+    position: absolute;
+    bottom: 18px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1000;
+    background: #023047;
+    color: #fff;
+    padding: 10px 20px;
+    border-radius: 30px;
+    font-size: 13px;
+    font-weight: 500;
+    box-shadow: 0 4px 18px rgba(0,0,0,.3);
+    white-space: nowrap;
+    pointer-events: none;
+    animation: geoToastIn .2s ease;
+}
+@keyframes geoToastIn {
+    from { opacity: 0; transform: translateX(-50%) translateY(8px); }
+    to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+#geoModalFooter {
+    padding: 12px 20px;
+    background: #f8f9fa;
+    border-top: 1px solid #e0e0e0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+}
+#geoCoordsDisplay {
+    font-size: 13px;
+    color: #495057;
+    flex: 1;
+    min-width: 180px;
+}
+#geoCoordsDisplay span {
+    font-weight: 600;
+    color: #023047;
+}
+#geoBtnCerrar {
+    background: #023047;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 20px;
+    font-size: 13px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: background .15s;
+}
+#geoBtnCerrar:hover { background: #1a5276; }
+</style>
 
 </head>
 <body>
@@ -806,7 +936,7 @@ while($obj = $objetivos_res->fetch_assoc()){
 <div class="col-md-6">
 
  <div class="form-group">
-  <label for="avance_financiero">% AVANCE FINANCIERO</label>
+  <label for="avance_financiero" style="background-color:#588157; color:white">% AVANCE FINANCIERO</label>
   <input type="text" class="form-control" id="avance_financiero" name="avance_financiero" value="<?php echo $row['avance_financiero']; ?>" readonly>
   <small class="text-muted">Calculado automáticamente en base al monto de actividades completadas sobre el total.</small>
  </div>
@@ -815,7 +945,7 @@ while($obj = $objetivos_res->fetch_assoc()){
 <div class="col-md-6">
 
  <div class="form-group">
-  <label for="avance_actividades">% AVANCE ACTIVIDADES</label>
+  <label for="avance_financiero" style="background-color:#588157; color:white">% AVANCE ACTIVIDADES</label>
   <input type="text" class="form-control" id="avance_actividades" name="avance_actividades" value="<?php echo $row['avance_actividades']; ?>" readonly>
   <small class="text-muted">Calculado automáticamente en base al número de actividades completadas sobre el total.</small>
  </div>
@@ -852,23 +982,32 @@ while($obj = $objetivos_res->fetch_assoc()){
 <!---------------------->
 
 <!----------------------> 
-<div class="row">
-  <div class="col-6">
+<div class="row align-items-end">
+  <div class="col-5">
     <div class="form-group">
       <label for="lat">LATITUD</label>
       <input type="text" class="form-control" id="lat" name="lat" value="<?php echo $row['lat'];?>">
-      <small class="text-muted">Coordenada de latitud de la ubicación del proyecto. Ej: -33.4569.</small>
+      <small class="text-muted">Coordenada de latitud. Ej: -33.4569.</small>
     </div>
   </div>
-  <div class="col-6">
+  <div class="col-5">
     <div class="form-group">
       <label for="lng">LONGITUD</label>
       <input type="text" class="form-control" id="lng" name="lng" value="<?php echo $row['lng'];?>">
-      <small class="text-muted">Coordenada de longitud de la ubicación del proyecto. Ej: -70.6483.</small>
+      <small class="text-muted">Coordenada de longitud. Ej: -70.6483.</small>
+    </div>
+  </div>
+  <div class="col-2">
+    <div class="form-group">
+      <button type="button" onclick="abrirMapaGeo()" class="btn btn-primary w-100"
+              style="margin-bottom:1px; background:linear-gradient(135deg,#023047,#1a5276); border:none; border-radius:8px; padding:9px 8px; font-size:13px; font-weight:600;">
+        <i class="fa-solid fa-map-location-dot"></i>&nbsp;Seleccionar en mapa
+      </button>
     </div>
   </div>
 </div>
 <!---------------------->
+
 
 
 
@@ -923,6 +1062,7 @@ while($obj = $objetivos_res->fetch_assoc()){
        <div class="row top-info-div ">
 
        <div class="col" style="text-align:center">
+        <div style="height:50px; clear:both"></div>
   <?php if($row_tabla["usuarios_profile"] == 'ADMINISTRADOR' || $row_tabla["usuarios_profile"] == 'ÁREA')  { ?>
     <?php if($_GET["proyectos_id"]=='0'){ ?>
     <?php } else { ?>
@@ -931,6 +1071,7 @@ while($obj = $objetivos_res->fetch_assoc()){
       </div>
 
        <div class="col" style="text-align:center">
+       <div style="height:50px; clear:both"></div>
        <button id="btsend" onclick="guardar();" type="button" class="btn btn-primary"><i class="fa-regular fa-floppy-disk"></i>&nbsp;Guardar cambios</button>
        </div>
 
@@ -1107,6 +1248,110 @@ Muestra las actividades del proyecto en edición. Permite editar una actividad h
 <script src="app.js"></script>
 
 <script>
+// ============================================================
+// MAPA GEOLOCALIZACIÓN — OpenStreetMap / Leaflet
+// ============================================================
+var geoMap    = null;
+var geoMarker = null;
+
+var GEO_DEFAULT_LAT  = -33.6442;   // San José de Maipo
+var GEO_DEFAULT_LNG  = -70.3567;
+var GEO_DEFAULT_ZOOM = 13;
+
+function abrirMapaGeo() {
+    // Mostrar modal
+    var modal = document.getElementById('geoModal');
+    modal.classList.add('active');
+
+    // Destruir instancia anterior si existe (evita el div gris)
+    if (geoMap) {
+        geoMap.remove();
+        geoMap   = null;
+        geoMarker = null;
+        // Limpiar el div para que Leaflet lo encuentre vacío
+        var div = document.getElementById('geoMap');
+        div.innerHTML = '';
+        div._leaflet_id = undefined;
+    }
+
+    // Esperar 300ms para que el modal esté pintado con tamaño real
+    setTimeout(function() {
+        var latVal = document.getElementById('lat').value.trim();
+        var lngVal = document.getElementById('lng').value.trim();
+        var latInicial = (latVal !== '' && !isNaN(parseFloat(latVal))) ? parseFloat(latVal) : GEO_DEFAULT_LAT;
+        var lngInicial = (lngVal !== '' && !isNaN(parseFloat(lngVal))) ? parseFloat(lngVal) : GEO_DEFAULT_LNG;
+
+        geoMap = L.map('geoMap', {
+            zoomControl: true
+        }).setView([latInicial, lngInicial], GEO_DEFAULT_ZOOM);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+            maxZoom: 19
+        }).addTo(geoMap);
+
+        // Si ya había coordenadas, poner marcador
+        if (latVal !== '' && lngVal !== '') {
+            geoMarker = L.marker([latInicial, lngInicial], { draggable: true }).addTo(geoMap);
+            geoMarker.on('dragend', function(e) {
+                var p = e.target.getLatLng();
+                _setCoords(p.lat, p.lng);
+            });
+        }
+
+        // Click en el mapa
+        geoMap.on('click', function(e) {
+            if (geoMarker) {
+                geoMarker.setLatLng([e.latlng.lat, e.latlng.lng]);
+            } else {
+                geoMarker = L.marker([e.latlng.lat, e.latlng.lng], { draggable: true }).addTo(geoMap);
+                geoMarker.on('dragend', function(ev) {
+                    var p = ev.target.getLatLng();
+                    _setCoords(p.lat, p.lng);
+                });
+            }
+            _setCoords(e.latlng.lat, e.latlng.lng);
+        });
+
+        geoMap.invalidateSize();
+    }, 300);
+}
+
+function _setCoords(lat, lng) {
+    var latFmt = lat.toFixed(6);
+    var lngFmt = lng.toFixed(6);
+
+    document.getElementById('lat').value = latFmt;
+    document.getElementById('lng').value = lngFmt;
+
+    document.getElementById('geoLatDisplay').style.fontWeight = '600';
+    document.getElementById('geoLatDisplay').style.color      = '#023047';
+    document.getElementById('geoLatDisplay').textContent      = 'Lat: ' + latFmt;
+    document.getElementById('geoLngDisplay').textContent      = '\u00a0|\u00a0Lng: ' + lngFmt;
+
+    var toast = document.getElementById('geoToast');
+    toast.textContent = '\u2713\u00a0Coordenadas traspasadas: ' + latFmt + ', ' + lngFmt;
+    toast.style.display = 'block';
+    clearTimeout(toast._t);
+    toast._t = setTimeout(function(){ toast.style.display = 'none'; }, 3000);
+}
+
+function cerrarMapaGeo() {
+    document.getElementById('geoModal').classList.remove('active');
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('geoModal').addEventListener('click', function(e) {
+        if (e.target === this) cerrarMapaGeo();
+    });
+});
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') cerrarMapaGeo();
+});
+</script>
+
+<script>
 function guardar(){    
     $.confirm({
         title: '¡Atención!',
@@ -1141,6 +1386,8 @@ $(document).ready(function() {
             cache: false,             
             processData: false,         
             success: function(response) {
+                // Si es insert, la respuesta trae el nuevo ID
+                var nuevo_id = parseInt(response);
                 $.confirm({
                     title: 'Éxito',
                     content: 'Los datos se guardaron correctamente',
@@ -1151,7 +1398,11 @@ $(document).ready(function() {
                             text: 'Aceptar',
                             btnClass: 'btn-green',
                             action: function () {
-                                window.location='proyectos.php';
+                                if (nuevo_id > 0) {
+                                    window.location = 'proyectos_editar.php?proyectos_id=' + nuevo_id;
+                                } else {
+                                    window.location.reload();
+                                }
                             }
                         }
                     }
@@ -1339,6 +1590,38 @@ $(function () {
 }
 ?>
 
+<!-- ========== MODAL MAPA GEOLOCALIZACIÓN — fuera del form ========== -->
+<div id="geoModal">
+  <div id="geoModalBox">
+    <div id="geoModalHeader">
+      <div>
+        <h6><i class="fa-solid fa-map-location-dot"></i>&nbsp; Seleccionar ubicación en el mapa</h6>
+        <p>Haga clic en el mapa para fijar la coordenada de la iniciativa</p>
+      </div>
+      <button type="button" id="geoModalClose" onclick="cerrarMapaGeo()" title="Cerrar">&#10005;</button>
+    </div>
+    <div id="geoMapContainer">
+      <div id="geoMap"></div>
+      <div id="geoToast"></div>
+    </div>
+    <div id="geoModalFooter">
+      <div id="geoCoordsDisplay">
+        <i class="fa-solid fa-crosshairs" style="color:#4a8ecd"></i>&nbsp;
+        <?php if (!empty($row['lat']) && !empty($row['lng'])): ?>
+          Lat: <span id="geoLatDisplay"><?php echo $row['lat']; ?></span>
+          &nbsp;|&nbsp; <span id="geoLngDisplay">Lng: <?php echo $row['lng']; ?></span>
+        <?php else: ?>
+          <span id="geoLatDisplay" style="font-weight:400;color:#888">Sin coordenada seleccionada</span>
+          <span id="geoLngDisplay"></span>
+        <?php endif; ?>
+      </div>
+      <button type="button" id="geoBtnCerrar" onclick="cerrarMapaGeo()">
+        <i class="fa-solid fa-check"></i>&nbsp; Listo, cerrar mapa
+      </button>
+    </div>
+  </div>
+</div>
+<!-- ========== /MODAL MAPA ========== -->
 
 </body>
 </html>

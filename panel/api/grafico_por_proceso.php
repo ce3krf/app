@@ -26,12 +26,18 @@ $db->query("SET NAMES 'utf8'");
 // Consulta
 $query = "
     SELECT 
-        COALESCE(proc.procesos_descripcion, 'Sin proceso') as proceso,
-        COUNT(p.id) as cuantos
-    FROM proyectos p
-    LEFT JOIN procesos proc ON p.proceso = proc.procesos_id
-    WHERE p.proyectos_status = 1
-    GROUP BY p.proceso, proc.procesos_descripcion
+        proceso,
+        SUM(cuantos) as cuantos
+    FROM (
+        SELECT 
+            COALESCE(proc.procesos_descripcion, 'Sin proceso') as proceso,
+            COUNT(p.id) as cuantos
+        FROM proyectos p
+        LEFT JOIN procesos proc ON p.proceso = proc.procesos_id
+        WHERE p.proyectos_status = 1
+        GROUP BY p.proceso, proc.procesos_descripcion
+    ) sub
+    GROUP BY proceso
     ORDER BY cuantos DESC
 ";
 

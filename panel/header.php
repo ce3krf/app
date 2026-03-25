@@ -34,7 +34,8 @@
                        onmouseover="this.style.backgroundColor='rgba(255,255,255,0.1)'"
                        onmouseout="this.style.backgroundColor='transparent'">
                         <img src="<?php echo $usuarios_foto;?>" 
-                             style="width:35px; height:35px; object-fit:cover; border-radius:50%; margin-right:10px; border: 2px solid rgba(255,255,255,0.3); box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+                            onerror="this.src='img/default_avatar.png'"
+                                style="width:35px; height:35px; object-fit:cover; border-radius:50%; margin-right:10px; border: 2px solid rgba(255,255,255,0.3); box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
                         <span style="font-weight: 500;"><?php echo $_SESSION["net_fulltrust_fas_users_name"];?></span>
                     </a>
                     <ul class="dropdown-menu dropdown-menu-end" style="border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); border: none; margin-top: 8px;">

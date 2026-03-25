@@ -3,51 +3,454 @@
 // Autor: Marcelo Jiménez
 // Fulltrust Software
 // https://www.fulltrust.net
-// Fecha última actualización: 2024-12-31
+// Fecha última actualización: 2026-03-09 10:46:40
 // ************************************************************
+?>
+<?php
+//error_reporting(E_ALL);
+//ini_set('display_errors', '1');
+
 
 @session_start();
 include("../conf/db.php");		
 include('functions.php');
 
-$sql = "SELECT * FROM procesos WHERE procesos_id=" . mysqli_real_escape_string($db, $_GET['procesos_id']);
+//echo "here<br>";
+//exit;
+
+
+
+if (!isset($_GET['proyectos_id']) || !is_numeric($_GET['proyectos_id'])) {
+    die('ID de proyecto no válido');
+}
+
+$codigo_proyecto = (int) $_GET['proyectos_id'];
+
+// -----------------------------------------------------
+// 1. Calcular total de actividades y total de montos
+// -----------------------------------------------------
+
+$q = "select 
+coalesce(proyectos.p_diseno, 0) +
+coalesce(proyectos.p_ejecucion, 0) as ptotal 
+from proyectos 
+where 
+proyectos.id = ?";
+$stmt_total = $db->prepare($q);
+$stmt_total->bind_param('i', $codigo_proyecto);
+$stmt_total->execute();
+$result_total = $stmt_total->get_result();
+$row_total = $result_total->fetch_assoc();
+
+$total_monto = (float) $row_total['ptotal'];
+
+
+
+$query_total = "
+    SELECT 
+        COUNT(*) AS total_actividades,
+        COALESCE(SUM(monto), 0) AS total_monto
+    FROM actividades
+    WHERE proyecto = ?
+";
+$stmt_total = $db->prepare($query_total);
+$stmt_total->bind_param('i', $codigo_proyecto);
+$stmt_total->execute();
+$result_total = $stmt_total->get_result();
+$row_total = $result_total->fetch_assoc();
+
+$total_actividades = (int) $row_total['total_actividades'];
+
+
+
+// -----------------------------------------------------
+// 2. Calcular actividades y monto de actividades completas
+// -----------------------------------------------------
+$query_completas = "
+    SELECT 
+        COUNT(*) AS completadas,
+        COALESCE(SUM(monto), 0) AS monto_completo
+    FROM actividades
+    WHERE proyecto = ? AND estado = 'Completa'
+";
+$stmt_completas = $db->prepare($query_completas);
+$stmt_completas->bind_param('i', $codigo_proyecto);
+$stmt_completas->execute();
+$result_completas = $stmt_completas->get_result();
+$row_completas = $result_completas->fetch_assoc();
+
+$actividades_completas = (int) $row_completas['completadas'];
+$monto_completo = (float) $row_completas['monto_completo'];
+
+
+// -----------------------------------------------------
+// 3. Calcular porcentajes
+// -----------------------------------------------------
+
+// Porcentaje de avance de actividades
+$avance_actividades = ($total_actividades > 0)
+    ? ($actividades_completas / $total_actividades) * 100
+    : 0;
+
+// Porcentaje de avance financiero
+
+//echo "->".$total_monto. "<br>";
+
+$avance_financiero = ($total_monto > 0)
+    ? ($monto_completo / $total_monto) * 100
+    : 0;
+
+// Redondear ambos a 2 decimales
+$avance_actividades = round($avance_actividades, 2);
+$avance_financiero  = round($avance_financiero, 2);
+
+
+// -----------------------------------------------------
+// 4. Actualizar la tabla proyectos
+// -----------------------------------------------------
+
+// Avance financiero
+$q = "UPDATE proyectos SET avance_financiero = ? WHERE id = ?";
+$stmt = $db->prepare($q);
+$stmt->bind_param('di', $avance_financiero, $codigo_proyecto);
+$stmt->execute();
+
+// Avance de actividades
+$q = "UPDATE proyectos SET avance_actividades = ? WHERE id = ?";
+$stmt = $db->prepare($q);
+$stmt->bind_param('di', $avance_actividades, $codigo_proyecto);
+$stmt->execute();
+
+
+$q="select * from proyectos where id='".$codigo_proyecto."'";
+if(!$result = $db->query($q)){
+    die('Hay un error [' . $db->error . ']');
+} 
+$row = $result->fetch_assoc();
+
+
+
+// Si el perfil es ÁREA, mostrar solo los instrumentos asignados al usuario
+$perfil_usuario_temp = $_SESSION['usuarios_profile'];
+$user_id_temp        = (int) $_SESSION["net_fulltrust_fas_id"];
+
+if ($perfil_usuario_temp === 'ÁREA') {
+    $sql = "
+        SELECT i.instrumentos_id, i.instrumentos_descripcion
+        FROM instrumentos i
+        INNER JOIN usuarios_areas ua 
+            ON ua.instrumentos_id = i.instrumentos_id
+            AND ua.usuarios_id = $user_id_temp
+        ORDER BY i.instrumentos_descripcion
+    ";
+} else {
+    $sql = "SELECT * FROM instrumentos ORDER BY instrumentos_descripcion";
+}
+
+if(!$instrumentos = $db->query($sql)){
+    die('Hay un error [' . $db->error . ']');
+}
+$row_instrumentos = $instrumentos->fetch_assoc();
+
+
+
+// Obtener los sectores disponibles
+$sql = "SELECT * FROM sectores ORDER BY sector_descripcion";
+if (!$sectores = $db->query($sql)) {
+  die('Hay un error [' . $db->error . ']');
+}
+$row_sectores = $sectores->fetch_assoc();
+
+// Obtener los subsectores disponibles
+$sql = "SELECT * FROM subsectores ORDER BY subsector_descripcion";
+if (!$subsectores = $db->query($sql)) {
+  die('Hay un error [' . $db->error . ']');
+}
+$row_subsectores = $subsectores->fetch_assoc();
+
+
+
+
+
+// Actualizar el campo avance_actividades en la tabla proyectos
+$query_update = "UPDATE proyectos SET avance_actividades = ?, avance_financiero = ? WHERE id = ?";
+$stmt_update = $db->prepare($query_update);
+$stmt_update->bind_param('dds', $porcentaje_completadas, $avance_financiero, $codigo_proyecto);
+if ($stmt_update->execute()) {
+    //echo "El avance de actividades se actualizó correctamente.";
+} else {
+    echo "Error al actualizar el avance de actividades: " . $stmt_update->error;
+}
+
+
+
+$sql="select * from actividades where proyecto='".$row['id']."' order by ano";
 if(!$result = $db->query($sql)){
     die('Hay un error [' . $db->error . ']');
 }
-$row = $result->fetch_assoc();
-?>
 
+
+$sql="select * from indicadores where indicadores_iniciativa='".$row['id']."' order by indicadores_id";
+if(!$indica = $db->query($sql)){
+    die('Hay un error [' . $db->error . ']');
+}
+$row_indica = $indica->fetch_assoc();
+
+
+// Obtener instrumentos permitidos para el usuario (aplica solo a perfil ÁREA)
+$perfil_usuario          = $_SESSION['usuarios_profile'];
+$user_id_areas           = (int) $_SESSION["net_fulltrust_fas_id"];
+$instrumentos_permitidos = [];   // vacío = sin restricción
+
+if ($perfil_usuario === 'ÁREA') {
+    $q_ap = "SELECT GROUP_CONCAT(instrumentos_id ORDER BY instrumentos_id) AS instrumentos
+              FROM usuarios_areas WHERE usuarios_id = $user_id_areas AND instrumentos_id IS NOT NULL";
+    if (!$r_ap = $db->query($q_ap)) {
+        die('Ha ocurrido un error ejecutando la consulta [' . $db->error . ']');
+    }
+    $u_ap = $r_ap->fetch_assoc();
+    if (!empty($u_ap['instrumentos'])) {
+        $instrumentos_permitidos = array_map('intval', explode(',', $u_ap['instrumentos']));
+    }
+}
+
+// - áreas para mostrar en el select
+$sql="select * from areas order by area";
+if(!$areas = $db->query($sql)){
+    die('Hay un error [' . $db->error . ']');
+}
+$row_areas = $areas->fetch_assoc();
+
+
+$sql="select distinct subarea from subareas order by subarea";
+if(!$subarea = $db->query($sql)){
+    die('Hay un error [' . $db->error . ']');
+}
+$row_subarea = $subarea->fetch_assoc();
+
+
+
+$sql="select * from origen order by origen";
+if(!$origenes = $db->query($sql)){
+    die('Hay un error [' . $db->error . ']');
+}
+$row_origenes = $origenes->fetch_assoc();
+
+
+$sql="select * from ubicaciones where codigo='".$row["ubicacion"]."'";
+if(!$ubicaciones = $db->query($sql)){
+    die('Hay un error [' . $db->error . ']');
+}
+$row_ubicaciones = $ubicaciones->fetch_assoc();
+
+
+$sql="select * from tipo order by tipo";
+if(!$tipo = $db->query($sql)){
+    die('Hay un error [' . $db->error . ']');
+}
+$row_tipo = $tipo->fetch_assoc();
+
+
+$sql="SELECT *  FROM   `estados`  ORDER BY  id";
+if(!$resestado = $db->query($sql)){
+    die('Hay un error [' . $db->error . ']');
+}
+$row_estado = $resestado->fetch_assoc();  
+
+
+
+$sql="SELECT *  FROM   `etapas`  ORDER BY  etapas_id";
+if(!$etapas = $db->query($sql)){
+    die('Hay un error [' . $db->error . ']');
+}
+$row_eatapas = $etapas->fetch_assoc();  
+
+
+
+$sql="SELECT *  FROM   `procesos`  ORDER BY  procesos_id";
+if(!$procesos = $db->query($sql)){
+    die('Hay un error [' . $db->error . ']');
+}
+$row_procesos = $procesos->fetch_assoc();  
+
+$sql="SELECT * FROM lineamientos WHERE activo=1 ORDER BY orden, lineamiento_id";
+if(!$lineamientos = $db->query($sql)){
+    die('Hay un error [' . $db->error . ']');
+}
+
+$sql="SELECT * FROM objetivos WHERE activo=1 ORDER BY lineamiento_id, orden, objetivo_id";
+if(!$objetivos_res = $db->query($sql)){
+    die('Hay un error [' . $db->error . ']');
+}
+$objetivos_all = [];
+while($obj = $objetivos_res->fetch_assoc()){
+    $objetivos_all[] = $obj;
+}
+
+
+
+
+
+
+
+?>
 <!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">	
-<title><?php echo $_GET["procesos_id"] == '0' ? 'Crear Nuevo Proceso' : 'Editar Proceso';?></title>
+<title><?php echo $row_param["parametros_titulo"];?></title>
 
 <link rel="icon" type="image/png" href="../favicon.png">
 <script src="js/jquery-3.5.1.min.js"></script>	
-
+	
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jquery-confirm/3.3.2/jquery-confirm.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-confirm/3.3.2/jquery-confirm.min.js"></script>	
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.2/css/all.min.css">
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-<link rel="stylesheet" href="css/styles.css"/>
 
-<script>
-function generatePDF() {
-    const element = document.getElementById('pprint');
-    const opt = {
-        margin: 1,
-        filename: '<?php echo $row["procesos_descripcion"] ?>.pdf',
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2 },
-        jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
-    };
-    html2pdf().from(element).set(opt).save();
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+<link rel="stylesheet" type="text/css" href="css/styles.css"/>
+
+<!-- Leaflet OSM -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+
+<!-- Modal Mapa Geolocalización -->
+<style>
+#geoModal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: rgba(0,0,0,.55);
+    backdrop-filter: blur(3px);
+    align-items: center;
+    justify-content: center;
 }
-</script>
+#geoModal.active {
+    display: flex;
+}
+#geoModalBox {
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.35);
+    width: min(820px, 96vw);
+    max-height: 92vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: geoSlideIn .22s ease;
+}
+@keyframes geoSlideIn {
+    from { transform: translateY(-30px); opacity: 0; }
+    to   { transform: translateY(0);     opacity: 1; }
+}
+#geoModalHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px 14px;
+    background: linear-gradient(135deg, #023047 0%, #1a5276 100%);
+    color: #fff;
+    flex-shrink: 0;
+}
+#geoModalHeader h6 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: .3px;
+}
+#geoModalHeader p {
+    margin: 2px 0 0;
+    font-size: 12px;
+    opacity: .75;
+}
+#geoModalClose {
+    background: rgba(255,255,255,.18);
+    border: none;
+    border-radius: 50%;
+    width: 32px; height: 32px;
+    cursor: pointer;
+    color: #fff;
+    font-size: 16px;
+    line-height: 32px;
+    text-align: center;
+    transition: background .15s;
+    flex-shrink: 0;
+}
+#geoModalClose:hover { background: rgba(255,255,255,.32); }
+#geoMapContainer {
+    flex: 1;
+    min-height: 420px;
+    height: 420px;
+    position: relative;
+    cursor: crosshair;
+}
+#geoMap {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    width: 100%;
+    height: 100%;
+}
+#geoToast {
+    display: none;
+    position: absolute;
+    bottom: 18px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1000;
+    background: #023047;
+    color: #fff;
+    padding: 10px 20px;
+    border-radius: 30px;
+    font-size: 13px;
+    font-weight: 500;
+    box-shadow: 0 4px 18px rgba(0,0,0,.3);
+    white-space: nowrap;
+    pointer-events: none;
+    animation: geoToastIn .2s ease;
+}
+@keyframes geoToastIn {
+    from { opacity: 0; transform: translateX(-50%) translateY(8px); }
+    to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+#geoModalFooter {
+    padding: 12px 20px;
+    background: #f8f9fa;
+    border-top: 1px solid #e0e0e0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+}
+#geoCoordsDisplay {
+    font-size: 13px;
+    color: #495057;
+    flex: 1;
+    min-width: 180px;
+}
+#geoCoordsDisplay span {
+    font-weight: 600;
+    color: #023047;
+}
+#geoBtnCerrar {
+    background: #023047;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 20px;
+    font-size: 13px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: background .15s;
+}
+#geoBtnCerrar:hover { background: #1a5276; }
+</style>
+
 </head>
 <body>
 
@@ -63,56 +466,815 @@ function generatePDF() {
 
             <div class="row top-info-div">
                 <div class="col">
-                    <h5><?php echo $_GET["procesos_id"] == '0' ? 'CREAR NUEVO PROCESO' : 'EDITAR PROCESO';?></h5>
+                  <?php if($_GET["proyectos_id"]=='0'){ ?>
+                    <h5>CREAR NUEVA INICIATIVA</h5>
+                  <?php } else { ?>
+                    <h5>EDITAR INICIATIVA</h5>
+                  <?php } ?>
                 </div>
+
                 <div class="col text-end">
-                    <button onclick="window.location='procesos.php'" type="button" class="btn btn-primary"><i class="fa-solid fa-chevron-left"></i>&nbsp;Volver</button>
-                </div>
-            </div>
+                <?php if($_GET["proyectos_id"]=='0'){ ?>
+                <button onclick="window.location='proyectos.php'" type="button" class="btn btn-primary"><i class="fa-solid fa-chevron-left"></i>&nbsp;Volver</button>
+                <?php } else { ?>
+                <button onclick="window.location='proyectos.php'" type="button" class="btn btn-primary"><i class="fa-solid fa-chevron-left"></i>&nbsp;Volver</button>                                          
+                <?php } ?>  
+                </div>                        
+            </div>    
 
-            <div id="pprint" class="container">
-                <form id="form1" name="form1">
-                    <?php if($_GET["procesos_id"] != '0'){ ?>
-                    <div class="row">
-                        <div class="col">
-                            <button onclick="generatePDF();" type="button" class="btn btn-secondary"><i class="fa-regular fa-file"></i>&nbsp;Exportar como PDF</button>
-                        </div>
-                    </div>
-                    <?php } ?>
-                    
-                    <div class="row">
-                        <div class="col">
-                            <div class="form-group">
-                                <label for="procesos_descripcion">Descripción</label>
-                                <input type="text" class="form-control" id="procesos_descripcion" name="procesos_descripcion" value="<?php echo $row["procesos_descripcion"];?>">
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <input name="procesos_id" type="hidden" id="procesos_id" value="<?php echo $row["procesos_id"]?>" />
-                    <input name="posted" type="hidden" id="posted" value="1" />
-                    <input name="task" type="hidden" id="task" value="<?php echo $_GET["procesos_id"] == '0' ? 'insert' : 'update';?>" />
-                    <input name="token" type="hidden" id="token" value="<?php echo $sid;?>" />
-                    
-                    <div class="row mt-4">
-                        <?php if($row_tabla["usuarios_profile"] == 'ADMINISTRADOR' && $_GET["procesos_id"] != '0'){ ?>
-                        <div class="col text-center">
-                            <button id="btdelete" onclick="eliminar();" type="button" class="btn btn-danger"><i class="fa-regular fa-trash-can"></i>&nbsp;Eliminar proceso</button>
-                        </div>
-                        <?php } ?>
-                        <div class="col text-center">
-                            <button id="btsend" onclick="guardar();" type="button" class="btn btn-primary"><i class="fa-regular fa-floppy-disk"></i>&nbsp;Guardar cambios</button>
-                        </div>
-                    </div>
-                </form>
-                
-                <form id="frm1" name="frm1">
-                    <input type="hidden" name="task" value="delete">
-                    <input type="hidden" name="procesos_id" value="<?php echo $row["procesos_id"];?>">
-                    <input type="hidden" name="token" value="<?php echo $sid;?>" />
-                </form>
-            </div>
+            <div class="container">
+            <form id="form1" name="form1">
 
+<!----------------------> 
+<?php if($_GET["proyectos_id"]=='0'){ ?>
+  <?php } else { ?>  
+
+<!-- Tarjetas de Información Clave -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="info-card" style="background-color: #e8f4f8; border-left: 4px solid #4a8ecd; padding: 20px; border-radius: 8px;">
+            <div style="font-size: 11px; color: #6c757d; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">
+                % Avance Financiero
+            </div>
+            <div style="font-size: 32px; font-weight: 700; color: #023047; margin-bottom: 5px;">
+                <?php echo round($row['avance_financiero'], 1); ?>%
+            </div>
+            <div class="progress" style="height: 8px; border-radius: 10px;">
+                <div class="progress-bar" style="width: <?php echo $row['avance_financiero']; ?>%; background-color: #4a8ecd;" role="progressbar"></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="info-card" style="background-color: #e8f5e9; border-left: 4px solid #4a8f5e; padding: 20px; border-radius: 8px;">
+            <div style="font-size: 11px; color: #6c757d; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">
+                % Avance Actividades
+            </div>
+            <div style="font-size: 32px; font-weight: 700; color: #023047; margin-bottom: 5px;">
+                <?php echo round($row['avance_actividades'], 1); ?>%
+            </div>
+            <div class="progress" style="height: 8px; border-radius: 10px;">
+                <div class="progress-bar" style="width: <?php echo $row['avance_actividades']; ?>%; background-color: #4a8f5e;" role="progressbar"></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="info-card" style="background-color: #fff3e0; border-left: 4px solid #d17a4f; padding: 20px; border-radius: 8px;">
+            <div style="font-size: 11px; color: #6c757d; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">
+                Proceso Actual
+            </div>
+            <div style="font-size: 18px; font-weight: 600; color: #023047; margin-top: 10px;">
+                <?php 
+                $sql_proceso = "SELECT procesos_descripcion FROM procesos WHERE procesos_id = '".$row["proceso"]."'";
+                $result_proceso = $db->query($sql_proceso);
+                if($result_proceso && $row_proceso_actual = $result_proceso->fetch_assoc()) {
+                    echo $row_proceso_actual["procesos_descripcion"];
+                } else {
+                    echo "Sin proceso asignado";
+                }
+                ?>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+<div class="col">
+</div>  
+<div class="col" style="text-align:right">
+  <i class="fa-solid fa-list-check"></i>&nbsp;<a href="#actividad">Actividades de esta iniciativa</a>
+</div>  
+</div>
+<?php } ?>
+<!----------------------> 
+
+
+<!----------------------> 
+<div class="row">
+<div class="col">
+
+ <div class="form-group">
+   <label for="nombre">Nombre de la iniciativa</label>
+   <input type="text" class="form-control" id="nombre" name="nombre"  value="<?php echo $row["nombre"];?>">
+   <small class="text-muted">Ingrese el nombre completo y descriptivo de la iniciativa o proyecto.</small>
+ </div>
+
+</div>  
+</div>
+<!----------------------> 
+
+
+<!----------------------> 
+<div class="row">
+<div class="col-md-3">
+
+ <div class="form-group">
+   <label for="plan_maestro">PLAN MAESTRO</label>
+   <select class="form-select" name="plan_maestro" id="plan_maestro">
+     <option value="">Seleccione...</option>
+     <option value="Si"  <?php if($row["plan_maestro"] == 'Si')  echo 'selected'; ?>>Sí</option>
+     <option value="No"  <?php if($row["plan_maestro"] == 'No')  echo 'selected'; ?>>No</option>
+   </select>
+   <small class="text-muted">Indique si la iniciativa forma parte de un plan maestro.</small>
+ </div>
+
+</div>  
+</div>
+<!----------------------> 
+
+
+<!----------------------> 
+<div class="row">
+<div class="col">
+
+ <div class="form-group">
+  <label for="descripcion">Descripción de la iniciativa</label>
+  <textarea class="form-control" id="descripcion" name="descripcion" rows="5"><?php echo $row["descripcion"];?></textarea>
+  <small class="text-muted">Describa brevemente los objetivos, alcance y características principales de la iniciativa.</small>
+ </div>
+
+</div>  
+</div>
+<!----------------------> 
+
+
+<!----------------------> 
+
+<!-- Separador: Clasificación -->
+<div style="height:30px; clear:both"></div>
+<div class="row">
+<div class="col-12">
+<h6 style="color: var(--main); font-weight: 600; border-bottom: 2px solid var(--topdiv); padding-bottom: 8px; margin-bottom: 20px;">
+<i class="fas fa-tags"></i> CLASIFICACIÓN
+</h6>
+</div>
+</div>
+
+<!----------------------> 
+<div class="row">
+<div class="col">
+
+ <div class="form-group">
+   <label for="instrumento">INSTRUMENTO</label>
+
+   <select class="form-select" name="instrumento" id="instrumento">
+     <option value="">Seleccione...</option>
+     <?php do { ?>
+     <option <?php if( $row_instrumentos["instrumentos_id"] == $row["instrumento"]) {echo " selected ";}?> value="<?php echo $row_instrumentos["instrumentos_id"];?>"><?php echo $row_instrumentos["instrumentos_descripcion"];?></option>
+     <?php } while ( $row_instrumentos = $instrumentos->fetch_assoc() );?>
+ </select>
+ <?php if ($perfil_usuario_temp === 'ÁREA'): ?>
+ <small class="text-muted"><i class="fas fa-lock" style="color:#d17a4f"></i> Solo se muestran los instrumentos asignados a su perfil.</small>
+ <?php else: ?>
+ <small class="text-muted">Seleccione el instrumento de financiamiento o gestión asociado a esta iniciativa.</small>
+ <?php endif; ?>
+
+ </div>
+
+</div>  
+</div>
+<!----------------------> 
+
+<!----------------------> 
+<div class="row">
+<div class="col-md-6">
+
+ <div class="form-group">
+   <label for="lineamiento_id">LINEAMIENTO ESTRATÉGICO</label>
+   <select class="form-select" name="lineamiento_id" id="lineamiento_id">
+     <option value="">Seleccione...</option>
+     <?php while($row_lin = $lineamientos->fetch_assoc()): ?>
+     <option <?php if($row_lin["lineamiento_id"] == $row["lineamiento_id"]) echo "selected"; ?> value="<?php echo $row_lin["lineamiento_id"]; ?>"><?php echo htmlspecialchars($row_lin["descripcion"]); ?></option>
+     <?php endwhile; ?>
+   </select>
+   <small class="text-muted">Lineamiento estratégico al que se vincula esta iniciativa.</small>
+ </div>
+
+</div>
+<div class="col-md-6">
+
+ <div class="form-group">
+   <label for="objetivo_id">OBJETIVO ESTRATÉGICO</label>
+   <select class="form-select" name="objetivo_id" id="objetivo_id">
+     <option value="">Seleccione...</option>
+     <?php foreach($objetivos_all as $obj): ?>
+     <option <?php if($obj["objetivo_id"] == $row["objetivo_id"]) echo "selected"; ?> value="<?php echo $obj["objetivo_id"]; ?>" data-lineamiento="<?php echo $obj["lineamiento_id"]; ?>"><?php echo htmlspecialchars($obj["descripcion"]); ?></option>
+     <?php endforeach; ?>
+   </select>
+   <small class="text-muted">Objetivo estratégico asociado al lineamiento seleccionado.</small>
+ </div>
+
+</div>  
+</div>
+<!----------------------> 
+
+<!----------------------> 
+<div class="row">
+<div class="col-md-6">
+
+ <div class="form-group">
+   <label for="sector">SECTOR</label>
+
+   <select class="form-select" name="sector" id="sector">
+     <option value="">Seleccione...</option>
+     <?php do { ?>
+     <option <?php if( $row_sectores["sector_id"] == $row["sector"]) {echo " selected ";}?> value="<?php echo $row_sectores["sector_id"];?>"><?php echo $row_sectores["sector_descripcion"];?></option>
+     <?php } while ( $row_sectores = $sectores->fetch_assoc() );?>
+ </select>
+ <small class="text-muted">Sector productivo o de servicios al que pertenece esta iniciativa.</small>
+
+ </div>
+
+</div>  
+<div class="col-md-6">
+
+ <div class="form-group">
+   <label for="subsector">SUBSECTOR</label>
+
+   <select class="form-select" name="subsector" id="subsector">
+     <option value="">Seleccione...</option>
+     <?php do { ?>
+     <option <?php if( $row_subsectores["subsector_id"] == $row["subsector"]) {echo " selected ";}?> value="<?php echo $row_subsectores["subsector_id"];?>"><?php echo $row_subsectores["subsector_descripcion"];?></option>
+     <?php } while ( $row_subsectores = $subsectores->fetch_assoc() );?>
+ </select>
+ <small class="text-muted">Subsector específico dentro del sector seleccionado.</small>
+
+ </div>
+
+</div>  
+</div>
+<!----------------------> 
+
+
+<!----------------------> 
+<div class="row">
+<div class="col-md-6">
+
+ <div class="form-group">
+   <label for="codigo_idi">CODIGO IDI</label>
+  <input type="text" class="form-control" id="codigo_idi" name="codigo_idi" value="<?php echo $row["codigo_idi"]; ?>" placeholder="Ej: 40012345-0">
+  <small class="text-muted">Código IDI asignado por el MDSF.</small>
+ </div>
+
+</div>
+<div class="col-md-6">
+
+ <div class="form-group">
+  <label for="tipo">TIPO</label>
+
+  <select class="form-select" name="tipo" id="tipo">
+    <option value="">Seleccione...</option>
+    <?php do { ?>
+    <option <?php if( $row_tipo["id"] == $row["tipo"]) {echo " selected ";}?> value="<?php echo $row_tipo["id"];?>"><?php echo $row_tipo["tipo"];?></option>
+    <?php } while ( $row_tipo = $tipo->fetch_assoc() );?>
+  </select>
+  <small class="text-muted">Tipo o categoría de la iniciativa según su naturaleza.</small>
+
+ </div>
+
+</div>  
+</div>
+<!----------------------> 
+
+<!----------------------> 
+
+<!-- Separador: Información Financiera -->
+<div style="height:30px; clear:both"></div>
+<div class="row">
+<div class="col-12">
+<h6 style="color: var(--main); font-weight: 600; border-bottom: 2px solid var(--topdiv); padding-bottom: 8px; margin-bottom: 20px;">
+<i class="fas fa-dollar-sign"></i> INFORMACIÓN FINANCIERA
+</h6>
+</div>
+</div>
+
+<!----------------------> 
+<div class="row">
+<div class="col-md-6">
+
+ <div class="form-group">
+  <label for="p_diseno">Diseño M$</label>
+  <input type="text" class="form-control" id="p_diseno" name="p_diseno" value="<?php echo number_format($row["p_diseno"], 2, ',', '.'); ?>">
+  <small class="text-muted">Monto presupuestado para la etapa de diseño, expresado en miles de pesos.</small>
+ </div>
+
+</div>  
+<div class="col-md-6">
+
+ <div class="form-group">
+  <label for="p_ejecucion">Ejecución M$</label>
+  <input type="text" class="form-control" id="p_ejecucion" name="p_ejecucion" value="<?php echo number_format($row["p_ejecucion"], 2, ',', '.'); ?>">
+  <small class="text-muted">Monto presupuestado para la etapa de ejecución, expresado en miles de pesos.</small>
+ </div>
+
+</div>  
+</div>
+<!----------------------> 
+
+
+<div style="height:30px; clear:both"></div>
+
+<!-- Separador: Cronograma y Estado -->
+<div class="row">
+<div class="col-12">
+<h6 style="color: var(--main); font-weight: 600; border-bottom: 2px solid var(--topdiv); padding-bottom: 8px; margin-bottom: 20px;">
+<i class="fas fa-calendar-alt"></i> CRONOGRAMA Y ESTADO
+</h6>
+</div>
+</div>
+
+<!----------------------> 
+<div class="row">
+<div class="col-md-6">
+
+ <div class="form-group">
+  <label for="etapa">ETAPA</label>
+
+  <select class="form-select" name="etapa" id="etapa">
+    <option value="">Seleccione...</option>
+    <?php do { ?>
+    <option <?php if( $row_eatapas["etapas_id"] == $row["etapa"]) {echo " selected ";}?> value="<?php echo $row_eatapas["etapas_id"];?>"><?php echo $row_eatapas["etapas_descripcion"];?></option>
+    <?php } while ( $row_eatapas = $etapas->fetch_assoc() );?>
+  </select>
+  <small class="text-muted">Etapa de desarrollo en que se encuentra actualmente la iniciativa.</small>
+
+ </div>
+
+</div>  
+<div class="col-md-6">
+
+ <div class="form-group">
+  <label for="proceso">PROCESO</label>
+
+  <select class="form-select" name="proceso" id="proceso">
+    <option value="">Seleccione...</option>
+    <?php do { ?>
+    <option <?php if( $row_procesos["procesos_id"] == $row["proceso"]) {echo " selected ";}?> value="<?php echo $row_procesos["procesos_id"];?>"><?php echo $row_procesos["procesos_descripcion"];?></option>
+    <?php } while ( $row_procesos = $procesos->fetch_assoc() );?>
+  </select>
+  <small class="text-muted">Proceso administrativo o técnico actualmente en curso para esta iniciativa.</small>
+
+ </div>
+
+</div>  
+</div>
+<!----------------------> 
+
+<!----------------------> 
+<div class="row">
+<div class="col-md-6">
+
+ <div class="form-group">
+  <label for="finicio">AÑO INICIO</label>
+  <input type="number" class="form-control" id="finicio" name="finicio" value="<?php echo $row["finicio"]; ?>" placeholder="Ej: 2025" min="2000" max="2100">
+  <small class="text-muted">Año de inicio programado para la ejecución de la iniciativa.</small>
+ </div>
+
+</div>  
+<div class="col-md-6">
+
+ <div class="form-group">
+  <label for="ftermino">AÑO TÉRMINO</label>
+  <input type="number" class="form-control" id="ftermino" name="ftermino" value="<?php echo $row["ftermino"]; ?>" placeholder="Ej: 2027" min="2000" max="2100">
+  <small class="text-muted">Año estimado de término o finalización de la iniciativa.</small>
+ </div>
+
+</div>  
+</div>
+<!----------------------> 
+
+<!----------------------> 
+
+<!-- Separador: Responsabilidad y Vinculación -->
+<div style="height:30px; clear:both"></div>
+<div class="row">
+<div class="col-12">
+<h6 style="color: var(--main); font-weight: 600; border-bottom: 2px solid var(--topdiv); padding-bottom: 8px; margin-bottom: 20px;">
+<i class="fas fa-users"></i> RESPONSABILIDAD Y VINCULACIÓN
+</h6>
+</div>
+</div>
+
+<!----------------------> 
+<div class="row">
+<div class="col">
+
+ <div class="form-group">
+  <label for="fuente">FUENTE</label>
+  <input type="text" class="form-control" id="fuente" name="fuente" value="<?php echo $row["fuente"]; ?>">
+  <small class="text-muted">Fuente de financiamiento de la iniciativa (ej: FNDR, Sectorial, Municipal, etc.).</small>
+ </div>
+
+</div>  
+</div>
+<!----------------------> 
+
+<!----------------------> 
+<div class="row">
+<div class="col">
+
+ <div class="form-group">
+  <label for="unidad_responsable_id">UNIDAD RESPONSABLE</label>
+  
+  <select class="form-select" name="unidad_responsable_id" id="unidad_responsable_id">
+    <option value="">Seleccione...</option>
+    <?php 
+    if($areas->num_rows > 0) {
+        $areas->data_seek(0);
+    }
+    do {
+    ?>
+    <option <?php if( $row_areas["id"] == $row["unidad_responsable_id"]) {echo " selected ";}?> value="<?php echo $row_areas["id"];?>"><?php echo $row_areas["area"];?></option>
+    <?php } while ( $row_areas = $areas->fetch_assoc() );?>
+  </select>
+  <small class="text-muted">Unidad o área responsable de la ejecución y seguimiento de esta iniciativa.</small>
+ </div>
+
+</div>  
+</div>
+<!----------------------> 
+
+
+
+
+<!----------------------> 
+<div class="row">
+<div class="col">
+
+ <div class="form-group">
+  <label for="instituciones_vinculadas">INSTITUCIONES VINCULADAS</label>
+  <input type="text" class="form-control" id="instituciones_vinculadas" name="instituciones_vinculadas" value="<?php echo $row["instituciones_vinculadas"]; ?>">
+  <small class="text-muted">Nombre de otras instituciones o entidades relacionadas con esta iniciativa, separadas por coma.</small>
+ </div>
+
+</div>  
+</div>
+<!----------------------> 
+
+
+
+
+<!----------------------> 
+<!--
+<div class="row">
+<div class="col">
+
+ <div class="form-group">
+   <label for="total">INVERSIÓN TOTAL (MILES DE PESOS)</label>
+   <input 
+     type="text" 
+     class="form-control" 
+     id="total" 
+     name="total"  
+     value="<?php //echo number_format($row['total'], 2, ',', '.'); ?>">
+ </div>
+
+</div>  
+</div>
+-->
+<!----------------------> 
+
+
+
+<div style="height:50px; clear:both"></div>
+
+
+
+<!----------------------> 
+<div class="row">
+<div class="col-md-6">
+
+ <div class="form-group">
+  <label for="avance_financiero">% AVANCE FINANCIERO</label>
+  <input type="text" class="form-control" id="avance_financiero" name="avance_financiero" value="<?php echo $row['avance_financiero']; ?>" readonly>
+  <small class="text-muted">Calculado automáticamente en base al monto de actividades completadas sobre el total.</small>
+ </div>
+
+</div>  
+<div class="col-md-6">
+
+ <div class="form-group">
+  <label for="avance_actividades">% AVANCE ACTIVIDADES</label>
+  <input type="text" class="form-control" id="avance_actividades" name="avance_actividades" value="<?php echo $row['avance_actividades']; ?>" readonly>
+  <small class="text-muted">Calculado automáticamente en base al número de actividades completadas sobre el total.</small>
+ </div>
+
+</div>  
+</div>
+<!----------------------> 
+
+
+
+<div style="height:50px; clear:both"></div>
+
+<div style="height:30px; clear:both"></div>
+
+<!-- Separador: Geolocalización -->
+<div class="row">
+<div class="col-12">
+<h6 style="color: var(--main); font-weight: 600; border-bottom: 2px solid var(--topdiv); padding-bottom: 8px; margin-bottom: 20px;">
+<i class="fas fa-map-marker-alt"></i> GEOLOCALIZACIÓN
+</h6>
+</div>
+</div>
+
+<!----------------------> 
+<div class="row">
+  <div class="col-12">
+    <div class="form-group">
+      <label for="localizacion">LOCALIZACIÓN</label>
+      <input type="text" class="form-control" id="localizacion" name="localizacion" value="<?php echo htmlspecialchars($row['localizacion'] ?? ''); ?>" maxlength="255">
+      <small class="text-muted">Descripción textual de la ubicación o área geográfica de la iniciativa.</small>
+    </div>
+  </div>
+</div>
+<!---------------------->
+
+<!----------------------> 
+<div class="row align-items-end">
+  <div class="col-5">
+    <div class="form-group">
+      <label for="lat">LATITUD</label>
+      <input type="text" class="form-control" id="lat" name="lat" value="<?php echo $row['lat'];?>">
+      <small class="text-muted">Coordenada de latitud. Ej: -33.4569.</small>
+    </div>
+  </div>
+  <div class="col-5">
+    <div class="form-group">
+      <label for="lng">LONGITUD</label>
+      <input type="text" class="form-control" id="lng" name="lng" value="<?php echo $row['lng'];?>">
+      <small class="text-muted">Coordenada de longitud. Ej: -70.6483.</small>
+    </div>
+  </div>
+  <div class="col-2">
+    <div class="form-group">
+      <button type="button" onclick="abrirMapaGeo()" class="btn btn-primary w-100"
+              style="margin-bottom:1px; background:linear-gradient(135deg,#023047,#1a5276); border:none; border-radius:8px; padding:9px 8px; font-size:13px; font-weight:600;">
+        <i class="fa-solid fa-map-location-dot"></i>&nbsp;Seleccionar en mapa
+      </button>
+    </div>
+  </div>
+</div>
+<!---------------------->
+
+<!-- ========== MODAL MAPA GEOLOCALIZACIÓN ========== -->
+<div id="geoModal">
+  <div id="geoModalBox">
+    <div id="geoModalHeader">
+      <div>
+        <h6><i class="fa-solid fa-map-location-dot"></i>&nbsp; Seleccionar ubicación en el mapa</h6>
+        <p>Haga clic en el mapa para fijar la coordenada de la iniciativa</p>
+      </div>
+      <button id="geoModalClose" onclick="cerrarMapaGeo()" title="Cerrar">&#10005;</button>
+    </div>
+    <div id="geoMapContainer">
+      <div id="geoMap"></div>
+      <div id="geoToast"></div>
+    </div>
+    <div id="geoModalFooter">
+      <div id="geoCoordsDisplay">
+        <i class="fa-solid fa-crosshairs" style="color:#4a8ecd"></i>&nbsp;
+        <?php if (!empty($row['lat']) && !empty($row['lng'])): ?>
+          Lat: <span id="geoLatDisplay"><?php echo $row['lat']; ?></span>
+          &nbsp;|&nbsp; Lng: <span id="geoLngDisplay"><?php echo $row['lng']; ?></span>
+        <?php else: ?>
+          <span id="geoLatDisplay" style="font-weight:400;color:#888">Sin coordenada seleccionada</span>
+          <span id="geoLngDisplay"></span>
+        <?php endif; ?>
+      </div>
+      <button id="geoBtnCerrar" onclick="cerrarMapaGeo()">
+        <i class="fa-solid fa-check"></i>&nbsp; Listo, cerrar mapa
+      </button>
+    </div>
+  </div>
+</div>
+<!-- ========== /MODAL MAPA ========== -->
+
+
+
+<!----------------------> 
+<!--
+<div class="row">
+<div class="col">
+
+ <div class="form-group">
+   <label for="pdf">PDF (<a target="_blank" href="../pdfs/<?php echo $row["pdf"];?>"><?php echo $row["pdf"];?></a>)</label>
+   <input class="form-control" accept="application/pdf" type="file" id="pdf" name="pdf" value="<?php echo $row["pdf"];?>">
+ </div>
+
+</div>  
+</div>
+-->
+<!----------------------> 
+
+
+
+
+
+
+<input name="proyectos_id" type="hidden" class="fields30" id="proyectos_id" value="<?php echo $row["id"]?>" />
+<input name="posted" type="hidden" class="fields30" id="posted" value="1" />
+<?php if($_GET["proyectos_id"]=='0'){ ?>
+<input name="task" type="hidden" class="fields30" id="task" value="insert" />
+<?php } else { ?>
+<input name="task" type="hidden" class="fields30" id="task" value="update" />
+<?php } ?>
+<input name="token" type="hidden" class="fields30" id="token" value="<?php echo $sid;?>" />
+
+
+
+
+
+
+
+<div class="row">
+<div class="col">
+
+
+     
+     
+
+     <tr>
+       <td colspan="2" valign="top">&nbsp;</td>
+     </tr>
+     <tr>
+       <td colspan="2" valign="top">
+         
+       <div class="row top-info-div ">
+
+       <div class="col" style="text-align:center">
+  <?php if($row_tabla["usuarios_profile"] == 'ADMINISTRADOR' || $row_tabla["usuarios_profile"] == 'ÁREA')  { ?>
+    <?php if($_GET["proyectos_id"]=='0'){ ?>
+    <?php } else { ?>
+       <button id="btdelete" type="button" class="btn btn-danger"><i class="fa-regular fa-trash-can"></i>&nbsp;Eliminar proyecto</button>
+       <?php } ?>
+      </div>
+
+       <div class="col" style="text-align:center">
+       <button id="btsend" onclick="guardar();" type="button" class="btn btn-primary"><i class="fa-regular fa-floppy-disk"></i>&nbsp;Guardar cambios</button>
+       </div>
+
+       </div>
+  <?php }?>
+     
+
+     
+     </td>
+     </tr>
+   </table>
+
+</div>  
+</div>
+
+
+
+</form>
+
+
+<form id="frm1" name="frm1">
+<input type="hidden" name="task" id="task" value="delete">    
+<input type="hidden" class="form-control" id="proyectos_id" name="proyectos_id" value="<?php echo $row["id"];?>">
+<input name="token" type="hidden" class="fields30" id="token" value="<?php echo $sid;?>" />
+</form>
+
+
+
+
+
+
+
+<div style="height:100px"></div>  
+
+<?php if($_GET["proyectos_id"]=='0'){ ?>
+<?php } else { ?>  
+<div style="height:10px; clear:both"></div>
+
+<!-- Bloque de auditoría -->
+<div style="border-top: 1px solid #dee2e6; padding-top: 14px; margin-bottom: 20px;">
+  <small class="text-muted d-flex flex-wrap gap-4">
+    <?php if (!empty($row['proyectos_created'])): ?>
+    <span>
+      <i class="fa-regular fa-calendar-plus" style="color:#4a8ecd"></i>&nbsp;
+      <strong>Creado:</strong>
+      <?php echo date('d/m/Y H:i', strtotime($row['proyectos_created'])); ?>
+    </span>
+    <?php endif; ?>
+    <?php if (!empty($row['proyectos_updated'])): ?>
+    <span>
+      <i class="fa-regular fa-calendar-check" style="color:#4a8f5e"></i>&nbsp;
+      <strong>Última actualización:</strong>
+      <?php echo date('d/m/Y H:i', strtotime($row['proyectos_updated'])); ?>
+    </span>
+    <?php endif; ?>
+    <?php if (!empty($row['proyectos_user'])): ?>
+    <span>
+      <i class="fa-regular fa-user" style="color:#d17a4f"></i>&nbsp;
+      <strong>Modificado por:</strong>
+      <?php echo htmlspecialchars($row['proyectos_user']); ?>
+    </span>
+    <?php endif; ?>
+  </small>
+</div>
+<!-- /Bloque de auditoría -->
+
+<div class="alert alert-warning" role="alert">
+Muestra las actividades del proyecto en edición. Permite editar una actividad haciendo clic en la primera columna de cada fila y crear nuevas actividades mediante el enlace en la parte superior derecha.
+</div>	 
+<?php } ?>
+ <!----------------------> 
+ <?php if($_GET["proyectos_id"]=='0'){ ?>
+ <?php } else { ?> 
+ <div class="row top-info-div">
+<div class="col">
+<a href="#" name="actividad" id="actividad"></a><h5>ACTIVIDAD DEL PROYECTO</h5>
+</div>  
+<div class="col" style="text-align:right">
+<button
+  class="btn btn-primary text-white"
+  type="button"
+  onclick="window.location.href='actividades_editar.php?proyectos_id=<?php echo $row['id']; ?>&actividades_id=0'">
+  <i class="fa-solid fa-plus"></i>&nbsp;Nueva actividad
+</button>
+
+</div>  
+</div>
+<!----------------------> 
+
+
+<!-- tabla -->
+<!----------------------> 
+<div class="row">
+<div class="col">
+
+<table class="table table-hover">
+  <thead>
+    <tr class="table-primary">
+      <th class="labels" scope="col" style="width:10%">EDITAR</th>
+      <th class="labels" scope="col">ACTIVIDAD</th>
+      <th class="labels" scope="col">AÑO</th>
+      <th class="labels text-end" scope="col">MONTO (en miles de pesos)</th>
+      <th class="labels" scope="col">FINACIAMIENTO</th>
+      <th class="labels" scope="col">ESTADO</th>
+      <th class="labels" scope="col">RESPONSABLE</th>      
+    </tr>
+  </thead>
+  <tbody>
+
+
+  <?php while($row_actividades = $result->fetch_assoc()) { ?>
+    <tr>
+      <td><a href="actividades_editar.php?actividades_id=<?php echo $row_actividades["id"];?>&proyectos_id=<?php echo $_GET["proyectos_id"];?>"><img src="img/edit.png" width="32"></a></td>
+      <td><?php echo $row_actividades["actividad"];?></td>
+      <td><?php echo $row_actividades["ano"];?></td>
+      <td class="text-end"><?php echo number_format($row_actividades["monto"], 0, ',', '.'); //echo $row_actividades["monto"];?></td>
+      <td><?php echo $row_actividades["finaciamiento"];?></td>
+      <td><?php echo $row_actividades["estado"];?></td>
+      <td style="text-align:center"><?php echo $row_actividades["responsable"];?></td>
+    </tr>
+  <?php } ?>
+  
+
+  </tbody>
+</table>
+
+
+</div>  
+</div>
+<!----------------------> 
+<?php } ?>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<p>&nbsp;</p>
+<p>&nbsp;</p>
+<p>&nbsp;</p>
+
+
+
+
+
+
+
+
+
+            </div>
+            
         </div>
     </div>
 </div>
@@ -124,13 +1286,126 @@ function generatePDF() {
 <script src="app.js"></script>
 
 <script>
+// ============================================================
+// MAPA GEOLOCALIZACIÓN — OpenStreetMap / Leaflet
+// ============================================================
+var geoMap    = null;
+var geoMarker = null;
+
+var GEO_DEFAULT_LAT  = -33.6442;   // San José de Maipo
+var GEO_DEFAULT_LNG  = -70.3567;
+var GEO_DEFAULT_ZOOM = 13;
+
+function abrirMapaGeo() {
+    var modal = document.getElementById('geoModal');
+    modal.classList.add('active');
+
+    // Esperamos a que el modal esté pintado en pantalla (visible + dimensiones reales)
+    // antes de inicializar o refrescar Leaflet
+    requestAnimationFrame(function() {
+        requestAnimationFrame(function() {
+            if (!geoMap) {
+                _inicializarMapa();
+            } else {
+                geoMap.invalidateSize(true);
+            }
+        });
+    });
+}
+
+function _inicializarMapa() {
+    var latVal = document.getElementById('lat').value.trim();
+    var lngVal = document.getElementById('lng').value.trim();
+    var latInicial = parseFloat(latVal) || GEO_DEFAULT_LAT;
+    var lngInicial = parseFloat(lngVal) || GEO_DEFAULT_LNG;
+
+    geoMap = L.map('geoMap', {
+        zoomControl:     true,
+        attributionControl: true
+    }).setView([latInicial, lngInicial], GEO_DEFAULT_ZOOM);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        maxZoom: 19
+    }).addTo(geoMap);
+
+    // Si ya había coordenadas, mostrar marcador
+    if (latVal !== '' && lngVal !== '') {
+        _ponerMarcador(latInicial, lngInicial);
+    }
+
+    // Click en el mapa
+    geoMap.on('click', function(e) {
+        _ponerMarcador(e.latlng.lat, e.latlng.lng);
+        actualizarCoordenadas(e.latlng.lat, e.latlng.lng);
+    });
+}
+
+function _ponerMarcador(lat, lng) {
+    if (geoMarker) {
+        geoMarker.setLatLng([lat, lng]);
+    } else {
+        geoMarker = L.marker([lat, lng], { draggable: true }).addTo(geoMap);
+        geoMarker.on('dragend', function(e) {
+            var p = e.target.getLatLng();
+            actualizarCoordenadas(p.lat, p.lng);
+        });
+    }
+}
+
+function actualizarCoordenadas(lat, lng) {
+    var latFmt = lat.toFixed(6);
+    var lngFmt = lng.toFixed(6);
+
+    document.getElementById('lat').value = latFmt;
+    document.getElementById('lng').value = lngFmt;
+
+    var dispLat = document.getElementById('geoLatDisplay');
+    var dispLng = document.getElementById('geoLngDisplay');
+    dispLat.style.fontWeight = '600';
+    dispLat.style.color      = '#023047';
+    dispLat.textContent      = 'Lat: ' + latFmt;
+    dispLng.textContent      = '\u00a0|\u00a0Lng: ' + lngFmt;
+
+    var toast = document.getElementById('geoToast');
+    toast.textContent = '\u2713\u00a0Coordenadas traspasadas: ' + latFmt + ', ' + lngFmt;
+    toast.style.display = 'block';
+    clearTimeout(toast._t);
+    toast._t = setTimeout(function(){ toast.style.display = 'none'; }, 3000);
+}
+
+function cerrarMapaGeo() {
+    document.getElementById('geoModal').classList.remove('active');
+}
+
+document.getElementById('geoModal').addEventListener('click', function(e) {
+    if (e.target === this) cerrarMapaGeo();
+});
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') cerrarMapaGeo();
+});
+</script>
+
+<script>
 function guardar(){    
     $.confirm({
         title: '¡Atención!',
-        content: 'Vas a guardar los cambios.<br>¿Deseas continuar?',
+        content: '¿Está seguro que desea guardar los cambios?',
+        type: 'blue',
+        typeAnimated: true,
         buttons: {
-            confirm: { text: 'Guardar cambios', action: function(){ $("#form1").submit(); } },
-            cancel: { text: 'Cancelar', action: function(){} }
+            confirmar: {
+                text: 'Sí, guardar',
+                btnClass: 'btn-blue',
+                action: function(){
+                    $("#form1").submit();
+                }
+            },
+            cancelar: {
+                text: 'Cancelar',
+                action: function(){}
+            }
         }
     });    
 }
@@ -138,80 +1413,213 @@ function guardar(){
 $(document).ready(function() {
     $('form#form1').on('submit', function (e) {
         e.preventDefault();
+        
         $.ajax({
             type: "POST",
-            url: "api/procesos.php",
+            url: "api/proyectos.php", 
             data: new FormData(document.getElementById("form1")),
-            contentType: false,
-            cache: false,
-            processData: false,
+            contentType: false,       
+            cache: false,             
+            processData: false,         
             success: function(response) {
-                $.alert({
-                    title: '¡Atención!',
-                    content: 'Los cambios han sido guardados exitosamente',
+                $.confirm({
+                    title: 'Éxito',
+                    content: 'Los datos se guardaron correctamente',
+                    type: 'green',
+                    typeAnimated: true,
                     buttons: {
-                        confirm: {
-                            text: 'Continuar',
-                            action: function(){
-                                if (response != 0) window.location='procesos_editar.php?procesos_id='+response;
+                        ok: {
+                            text: 'Aceptar',
+                            btnClass: 'btn-green',
+                            action: function () {
+                                window.location='proyectos.php';
                             }
                         }
                     }
                 });
             },
-            error: function(xhr, status, error) { console.error("Error:", error); },
-            beforeSend: function() {
+              error: function(xhr, status, error) {
+                  $.confirm({
+                      title: 'Error',
+                      content: 'No se pudieron guardar los datos. Por favor, intente nuevamente.',
+                      type: 'red',
+                      typeAnimated: true,
+                      buttons: {
+                          ok: {
+                              text: 'Aceptar',
+                              btnClass: 'btn-red'
+                          }
+                      }
+                  });
+                  console.error("Error en la petición AJAX:", error);
+              },
+              beforeSend: function() {
                 $('.fa-floppy-disk').addClass('spin-icon');
                 $('#btsend').prop('disabled', true);
-            },
-            complete: function() {
+              },
+              complete: function(xhr, status) {    
                 $('.fa-floppy-disk').removeClass('spin-icon');
                 $('#btsend').prop('disabled', false);
-            }
+              }        
         });
+
     });
 });
 
-function eliminar(){    
-    $.confirm({
-        title: '¡Atención!',
-        content: 'Vas a eliminar definitivamente este registro.<br>¿Deseas continuar?',
-        buttons: {
-            confirm: { text: 'Eliminar', action: function(){ $("#frm1").submit(); } },
-            cancel: { text: 'Cancelar', action: function(){} }
-        }
-    });    
+$(document).ready(function() {
+    $("#btdelete").click(function(){
+      $.confirm({
+          title: 'Confirmar eliminación',
+          content: '¿Está seguro que desea eliminar esta iniciativa?<br><strong>Esta acción no se puede deshacer.</strong>',
+          type: 'red',
+          typeAnimated: true,
+          buttons: {
+              eliminar: {
+                  text: 'Sí, eliminar',
+                  btnClass: 'btn-red',
+                  action: function(){
+                    eliminar();
+                  }
+              },
+              cancelar: {
+                  text: 'Cancelar',
+                  action: function(){}
+              }        
+          }
+      });       
+    });
+});
+
+function eliminar(){
+    var formulario = document.getElementById("frm1");
+    var datos = new FormData(formulario);
+    datos.append("token", $("#sid").val());
+    datos.append("task", "delete");
+    
+    $.ajax({
+        type: "POST",
+        url: "api/proyectos.php", 
+        data: new FormData(document.getElementById("frm1")),
+        contentType: false,       
+        cache: false,             
+        processData: false,         
+        success: function(response) {
+            $.confirm({
+                title: 'Eliminado',
+                content: 'La iniciativa ha sido eliminada correctamente',
+                type: 'green',
+                typeAnimated: true,
+                buttons: {
+                    ok: {
+                        text: 'Aceptar',
+                        btnClass: 'btn-green',
+                        action: function () {
+                            window.location='proyectos.php';
+                        }
+                    }
+                }
+            });
+        },
+          error: function(xhr, status, error) {
+              $.confirm({
+                  title: 'Error',
+                  content: 'No se pudo eliminar la iniciativa. Por favor, intente nuevamente.',
+                  type: 'red',
+                  typeAnimated: true,
+                  buttons: {
+                      ok: {
+                          text: 'Aceptar',
+                          btnClass: 'btn-red'
+                      }
+                  }
+              });
+              console.error("Error en la petición AJAX:", error);
+          },
+          beforeSend: function() {
+            $('.fa-trash-can').addClass('spin-icon');
+            $('#btdelete').prop('disabled', true);
+          },
+          complete: function(xhr, status) {    
+            $('.fa-trash-can').removeClass('spin-icon');
+            $('#btdelete').prop('disabled', false);
+          }        
+    });
 }
 
+// Filtrar objetivos según lineamiento seleccionado
 $(document).ready(function() {
-    $('form#frm1').on('submit', function (e) {
-        e.preventDefault();
-        $.ajax({
-            type: "POST",
-            url: "api/procesos.php",
-            data: new FormData(document.getElementById("frm1")),
-            contentType: false,
-            cache: false,
-            processData: false,
-            success: function(response) {
-                $.confirm({
-                    title: '¡Atención!',
-                    content: 'El registro ha sido eliminado',
-                    buttons: { ok: function () { window.location='procesos.php'; } }
-                });
-            },
-            error: function(xhr, status, error) { console.error("Error:", error); },
-            beforeSend: function() {
-                $('.fa-trash-can').addClass('spin-icon');
-                $('#btdelete').prop('disabled', true);
-            },
-            complete: function() {
-                $('.fa-trash-can').removeClass('spin-icon');
-                $('#btdelete').prop('disabled', false);
+    function filtrarObjetivos(lineamiento_id, mantener_valor) {
+        var $select = $('#objetivo_id');
+        $select.find('option').each(function() {
+            var $opt = $(this);
+            var lin = $opt.data('lineamiento');
+            if ($opt.val() === '' || !lineamiento_id || lin == lineamiento_id) {
+                $opt.show();
+            } else {
+                $opt.hide();
+                if ($opt.is(':selected')) $opt.prop('selected', false);
             }
         });
+        if (!mantener_valor) $select.val('');
+    }
+
+    // Al cargar la página, filtrar según valor actual
+    filtrarObjetivos($('#lineamiento_id').val(), true);
+
+    // Al cambiar el lineamiento
+    $('#lineamiento_id').on('change', function() {
+        filtrarObjetivos($(this).val(), false);
+    });
+});
+
+</script>
+
+<?php 
+$user_id = $_SESSION["net_fulltrust_fas_id"];
+$perfil  = $_SESSION['usuarios_profile'];
+
+$instrumentos_array = [];
+
+if ($perfil === 'ÁREA') {
+
+    $q = "
+        SELECT GROUP_CONCAT(instrumentos_id ORDER BY instrumentos_id) AS instrumentos
+        FROM usuarios_areas
+        WHERE usuarios_id = $user_id
+        AND instrumentos_id IS NOT NULL
+    ";
+
+    if (!$r = $db->query($q)) {
+        die('Ha ocurrido un error ejecutando la consulta [' . $db->error . ']');
+    }
+
+    $u = $r->fetch_assoc();
+    $instrumentos_lista = $u['instrumentos'] ?? '';
+    $instrumentos_array = $instrumentos_lista !== '' ? explode(',', $instrumentos_lista) : [];
+}
+
+/* $row["instrumento"] corresponde al instrumento del proyecto actual */
+
+if ($perfil === 'ÁREA' && $codigo_proyecto !== 0 && !in_array((string)$row["instrumento"], $instrumentos_array, true)) {
+?>
+<script>
+$(function () {
+    $.confirm({
+        title: 'Acceso restringido',
+        content: 'No tienes acceso a esta iniciativa.',
+        buttons: {
+            aceptar: function () {
+                window.location.href = 'proyectos.php';
+            }
+        }
     });
 });
 </script>
+<?php
+    exit;
+}
+?>
+
+
 </body>
 </html>

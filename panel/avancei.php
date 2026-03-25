@@ -101,24 +101,37 @@ $where_sql = implode(' AND ', $where);
 
 $sql = "
     SELECT
-        COALESCE(s.sector_descripcion, 'Sin sector')  AS area,
-        COALESCE(t.tipo, 'Sin tipo')                  AS tipo,
+        COALESCE(s.sector_descripcion, 'Sin sector')           AS area,
+        COALESCE(t.tipo, 'Sin tipo')                           AS tipo,
         CASE
             WHEN p.etapa IS NULL OR TRIM(p.etapa) = '' THEN 0
             ELSE CAST(p.etapa AS UNSIGNED)
-        END                                            AS etapa_id,
-        COALESCE(e.etapas_descripcion, 'Sin etapa')   AS etapa_desc,
-        COUNT(DISTINCT p.id)                           AS cantidad,
-        SUM(COALESCE(p.p_diseno, 0) + COALESCE(p.p_ejecucion, 0))
-                                                       AS presupuesto,
-        -- JOIN correcto: actividades.proyecto = proyectos.id
-        -- Solo actividades con estado 'Completa'
-        COALESCE(SUM(
-            CASE WHEN a.estado = 'Completa'
-                 THEN COALESCE(a.monto_final, a.monto, 0)
-                 ELSE 0
-            END
-        ), 0)                                          AS inversion
+        END                                                     AS etapa_id,
+        COALESCE(e.etapas_descripcion, 'Sin etapa')            AS etapa_desc,
+        COUNT(DISTINCT p.id)                                    AS cantidad,
+        -- Presupuesto: suma directa sobre proyectos (sin JOIN a actividades para evitar fan-out)
+        SUM(DISTINCT COALESCE(p.p_diseno, 0) + COALESCE(p.p_ejecucion, 0))
+                                                                AS presupuesto,
+        -- Inversión: suma de actividades Completa
+        -- NULLIF(monto_final, 0) trata el 0 como nulo para priorizar monto cuando monto_final=0
+        COALESCE((
+            SELECT SUM(COALESCE(NULLIF(a2.monto_final, 0), a2.monto, 0))
+            FROM actividades a2
+            INNER JOIN proyectos p2 ON p2.id = a2.proyecto
+            LEFT JOIN sectores  s2 ON p2.sector = s2.sector_id
+            LEFT JOIN tipo      t2 ON p2.tipo   = t2.id
+            WHERE a2.estado = 'Completa'
+              AND p2.proyectos_status = 1
+              AND COALESCE(s2.sector_descripcion, 'Sin sector') = COALESCE(s.sector_descripcion, 'Sin sector')
+              AND COALESCE(t2.tipo, 'Sin tipo')                 = COALESCE(t.tipo, 'Sin tipo')
+              AND CASE
+                    WHEN p2.etapa IS NULL OR TRIM(p2.etapa) = '' THEN 0
+                    ELSE CAST(p2.etapa AS UNSIGNED)
+                  END = CASE
+                    WHEN p.etapa IS NULL OR TRIM(p.etapa) = '' THEN 0
+                    ELSE CAST(p.etapa AS UNSIGNED)
+                  END
+        ), 0)                                                   AS inversion
     FROM proyectos p
     LEFT JOIN sectores   s ON p.sector = s.sector_id
     LEFT JOIN tipo       t ON p.tipo   = t.id
@@ -126,7 +139,6 @@ $sql = "
                                 WHEN p.etapa IS NULL OR TRIM(p.etapa) = '' THEN NULL
                                 ELSE CAST(p.etapa AS UNSIGNED)
                               END
-    LEFT JOIN actividades a ON a.proyecto = p.id
     WHERE {$where_sql}
     GROUP BY area, tipo, etapa_id, etapa_desc
     ORDER BY area, tipo, etapa_id
