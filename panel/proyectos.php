@@ -56,6 +56,69 @@ include('functions.php');
 .dataTables_wrapper .dataTables_paginate .paginate_button.disabled {
     background-color: #e9ecef; color: #6c757d; cursor: not-allowed;
 }
+
+/* ── Barra de filtros ── */
+.filtros-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: flex-end;
+    background: #ffffff;
+    border: 1px solid #e0e0e0;
+    border-radius: 10px;
+    padding: 14px 18px;
+    margin-bottom: 14px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+}
+
+.filtro-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 160px;
+    flex: 1 1 160px;
+}
+
+.filtro-item label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--main, #023047);
+    margin: 0;
+}
+
+.filtro-item select {
+    padding: 7px 10px;
+    border: 1px solid #ced4da;
+    border-radius: 6px;
+    font-size: 13px;
+    color: #333;
+    background-color: #f8f9fa;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23555' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    appearance: none;
+    -webkit-appearance: none;
+    cursor: pointer;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.filtro-item select:focus {
+    outline: none;
+    border-color: var(--topdiv, #4a8ecd);
+    box-shadow: 0 0 0 3px rgba(74,142,205,0.18);
+    background-color: #fff;
+}
+
+.filtro-item select:hover {
+    border-color: var(--topdiv, #4a8ecd);
+}
+
+.filtro-item label i {
+    margin-right: 4px;
+    opacity: 0.7;
+}
 </style> 
 	
 <script>
@@ -204,16 +267,24 @@ $(document).ready(function() {
     function agregarFiltros() {
         if ($("#filtroSector").length === 0) {
             $("#tabla_wrapper .top").prepend(
-                '<label style="margin-right:15px">Plan Maestro:&nbsp;' +
-                '<select id="filtroPlan">' +
-                    '<option value="">Todos</option>' +
-                    '<option value="Si">Sí</option>' +
-                    '<option value="No">No</option>' +
-                '</select></label>' +
-                '<label style="margin-right:15px">Sector:&nbsp;' +
-                '<select id="filtroSector"><option value="">Todos</option></select></label>' +
-                '<label style="margin-right:15px">Proceso:&nbsp;' +
-                '<select id="filtroProceso"><option value="">Todos</option></select></label>'
+                '<div class="filtros-bar">' +
+                  '<div class="filtro-item">' +
+                    '<label><i class="fa-solid fa-star"></i>Plan Maestro</label>' +
+                    '<select id="filtroPlan">' +
+                      '<option value="">Todos</option>' +
+                      '<option value="Si">S\u00ed</option>' +
+                      '<option value="No">No</option>' +
+                    '</select>' +
+                  '</div>' +
+                  '<div class="filtro-item">' +
+                    '<label><i class="fa-solid fa-building"></i>Sector</label>' +
+                    '<select id="filtroSector"><option value="">Todos</option></select>' +
+                  '</div>' +
+                  '<div class="filtro-item">' +
+                    '<label><i class="fa-solid fa-diagram-project"></i>Proceso</label>' +
+                    '<select id="filtroProceso"><option value="">Todos</option></select>' +
+                  '</div>' +
+                '</div>'
             );
         }
 

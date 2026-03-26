@@ -501,7 +501,145 @@ body { background-color: #f8f9fa; }
     #data-table thead th { position: static; }
 }
 
-#pprint { margin: 0; }
+/*
+ * La tabla puede ser más ancha que la pantalla.
+ * body/#wrapper/#page-content-wrapper tienen overflow-x:hidden (styles.css),
+ * por eso NO podemos usar scroll de página — nunca aparecería la barra.
+ *
+ * Solución: #pprint sale del flujo del container-fluid (margin negativo +
+ * padding equivalente) y su .table-wrapper gestiona su propio scroll
+ * horizontal, siempre visible en la parte inferior del bloque.
+ */
+#pprint {
+    /* Ocupa todo el ancho del #page-content-wrapper, ignorando el p-4 del container-fluid */
+    margin-left:  calc(-1 * var(--bs-gutter-x, 1.5rem));
+    margin-right: calc(-1 * var(--bs-gutter-x, 1.5rem));
+    /* Compensa el p-4 de Bootstrap (1.5 rem) */
+    padding-left:  1.5rem;
+    padding-right: 1.5rem;
+}
+
+#pprint .table-wrapper {
+    /* Scroll interno siempre visible → no depende de los overflow del layout */
+    overflow-x: auto;
+    overflow-y: visible;
+    /* La barra aparece pegada al borde inferior del bloque */
+    scrollbar-gutter: stable;
+}
+
+
+
+/* ── Barra de scroll espejo (parte superior) ── */
+.scroll-mirror-top {
+    overflow-x: auto;
+    overflow-y: hidden;
+    height: 16px;           /* altura visible de la barra */
+    margin-bottom: 2px;
+    scrollbar-gutter: stable;
+}
+.scroll-mirror-top .scroll-mirror-inner {
+    height: 1px;            /* contenido fantasma — solo importa el ancho */
+}
+
+
+/* ── Barra de scroll espejo (parte superior) ── */
+.scroll-mirror-top {
+    overflow-x: auto;
+    overflow-y: hidden;
+    height: 12px;
+    margin-bottom: 4px;
+    border-radius: 6px;
+    background: #e8f5e9;
+    scrollbar-gutter: stable;
+}
+.scroll-mirror-top .scroll-mirror-inner {
+    height: 1px;
+}
+
+/* Personalización de la barra (Webkit: Chrome, Edge, Safari) */
+.scroll-mirror-top::-webkit-scrollbar {
+    height: 12px;
+}
+.scroll-mirror-top::-webkit-scrollbar-track {
+    background: #e8f5e9;
+    border-radius: 6px;
+}
+.scroll-mirror-top::-webkit-scrollbar-thumb {
+    background: linear-gradient(90deg, var(--primary), var(--secondary));
+    border-radius: 6px;
+    border: 2px solid #e8f5e9;
+}
+.scroll-mirror-top::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(90deg, var(--main), var(--primary));
+}
+
+/* Firefox */
+.scroll-mirror-top {
+    scrollbar-width: thin;
+    scrollbar-color: var(--primary) #e8f5e9;
+}
+
+
+
+.scroll-mirror-top {
+    overflow-x: auto;
+    overflow-y: hidden;
+    height: 12px;
+    margin-bottom: 4px;
+    border-radius: 6px;
+    background: #fef0e6;
+    scrollbar-gutter: stable;
+}
+.scroll-mirror-top .scroll-mirror-inner {
+    height: 1px;
+}
+
+.scroll-mirror-top::-webkit-scrollbar {
+    height: 12px;
+}
+.scroll-mirror-top::-webkit-scrollbar-track {
+    background: #fef0e6;
+    border-radius: 6px;
+}
+.scroll-mirror-top::-webkit-scrollbar-thumb {
+    background: linear-gradient(90deg, #f4a261, #e76f51);
+    border-radius: 6px;
+    border: 2px solid #fef0e6;
+}
+.scroll-mirror-top::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(90deg, #e76f51, #c1440e);
+}
+
+/* Firefox */
+.scroll-mirror-top {
+    scrollbar-width: thin;
+    scrollbar-color: #f4a261 #fef0e6;
+}
+
+
+#pprint .table-wrapper::-webkit-scrollbar {
+    height: 12px;
+}
+#pprint .table-wrapper::-webkit-scrollbar-track {
+    background: #fef0e6;
+    border-radius: 6px;
+}
+#pprint .table-wrapper::-webkit-scrollbar-thumb {
+    background: linear-gradient(90deg, #f4a261, #e76f51);
+    border-radius: 6px;
+    border: 2px solid #fef0e6;
+}
+#pprint .table-wrapper::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(90deg, #e76f51, #c1440e);
+}
+
+/* Firefox */
+#pprint .table-wrapper {
+    scrollbar-width: thin;
+    scrollbar-color: #f4a261 #fef0e6;
+}
+
+
 </style>
 </head>
 <body>
@@ -831,5 +969,52 @@ function exportToExcel() {
         integrity="sha384-cuYeSxntonz0PPNlHhBs68uyIAVpIIOZZ5JqeqvYYIcEL727kskC66kF92t6Xl2V"
         crossorigin="anonymous"></script>
 <script src="app.js"></script>
+
+
+
+
+<script>
+(function () {
+    const wrapper = document.querySelector('#pprint .table-wrapper');
+    if (!wrapper) return;
+
+    // Crear el div espejo con un hijo cuyo ancho iguale al contenido de la tabla
+    const mirror = document.createElement('div');
+    mirror.className = 'scroll-mirror-top';
+    const inner = document.createElement('div');
+    inner.className = 'scroll-mirror-inner';
+    mirror.appendChild(inner);
+
+    // Insertar el espejo ANTES del .table-wrapper dentro de #pprint
+    wrapper.parentNode.insertBefore(mirror, wrapper);
+
+    // Sincronizar anchos cuando la tabla esté lista
+    function syncWidth() {
+        inner.style.width = wrapper.scrollWidth + 'px';
+    }
+    syncWidth();
+
+    // Sincronizar scroll bidireccional
+    let syncing = false;
+    mirror.addEventListener('scroll', function () {
+        if (syncing) return;
+        syncing = true;
+        wrapper.scrollLeft = mirror.scrollLeft;
+        syncing = false;
+    });
+    wrapper.addEventListener('scroll', function () {
+        if (syncing) return;
+        syncing = true;
+        mirror.scrollLeft = wrapper.scrollLeft;
+        syncing = false;
+    });
+
+    // Re-sincronizar si la ventana cambia de tamaño
+    window.addEventListener('resize', syncWidth);
+})();
+</script>
+
+
+
 </body>
 </html>

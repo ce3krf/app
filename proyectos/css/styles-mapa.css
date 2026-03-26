@@ -359,14 +359,14 @@ table{
     color: white;
 	position: absolute;
     height: 30px;
-	left: 10px;
-	top: 220px;
+	right: 10px;
+	top: 110px;
 	z-index: 10000;
 	padding: 5px;
 	padding-left: 5px;
 	padding-right: 5px;
     text-align: center;
-    width:130px;
+    width:160px;
     overflow: hidden;
 
     border-radius: 5px;

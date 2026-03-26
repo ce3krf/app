@@ -532,7 +532,7 @@ function restaurar(){
 
             $("#m5").animate({
                 height: "30px",
-                width: "130px"
+                width: "160px"
             }, 200);
         }
     };

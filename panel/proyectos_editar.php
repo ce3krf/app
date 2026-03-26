@@ -542,6 +542,20 @@ while($obj = $objetivos_res->fetch_assoc()){
 
 <!----------------------> 
 <div class="row">
+<div class="col-md-3">
+
+ <div class="form-group">
+   <label for="id_iniciativa">Id de iniciativa</label>
+   <input type="text" class="form-control" id="id_iniciativa" value="<?php echo $row['id'] ? $row['id'] : '—'; ?>" disabled readonly style="background-color:#f8f9fa; color:#6c757d; font-weight:600;">
+   <small class="text-muted">Identificador único generado por el sistema.</small>
+ </div>
+
+</div>  
+</div>
+<!----------------------> 
+
+<!----------------------> 
+<div class="row">
 <div class="col">
 
  <div class="form-group">
@@ -744,7 +758,7 @@ while($obj = $objetivos_res->fetch_assoc()){
 <div class="col-md-6">
 
  <div class="form-group">
-  <label for="p_diseno">Diseño M$</label>
+  <label style="background-color:#1a5276; color:white">Diseño M$</label>
   <input type="text" class="form-control" id="p_diseno" name="p_diseno" value="<?php echo number_format($row["p_diseno"], 2, ',', '.'); ?>">
   <small class="text-muted">Monto presupuestado para la etapa de diseño, expresado en miles de pesos.</small>
  </div>
@@ -753,12 +767,35 @@ while($obj = $objetivos_res->fetch_assoc()){
 <div class="col-md-6">
 
  <div class="form-group">
-  <label for="p_ejecucion">Ejecución M$</label>
+  <label style="background-color:#1a5276; color:white">Ejecución M$</label>
   <input type="text" class="form-control" id="p_ejecucion" name="p_ejecucion" value="<?php echo number_format($row["p_ejecucion"], 2, ',', '.'); ?>">
   <small class="text-muted">Monto presupuestado para la etapa de ejecución, expresado en miles de pesos.</small>
  </div>
 
 </div>  
+</div>
+<!----------------------> 
+
+<!----------------------> 
+<div class="row">
+<div class="col-12">
+ <div class="form-group">
+  <label style="background-color:#1a5276; color:white">Inversión Total M$</label>
+  <div id="inversion_total_display" style="
+    font-size: 26px;
+    font-weight: 700;
+    color: #1a5276;
+    background: #eaf0fb;
+    border: 1px solid #b8cfe8;
+    border-radius: 6px;
+    padding: 8px 14px;
+    letter-spacing: 0.5px;
+  ">
+    <?php echo number_format($row["p_diseno"] + $row["p_ejecucion"], 2, ',', '.'); ?>
+  </div>
+  <small class="text-muted">Suma de los montos de Diseño y Ejecución. Se actualiza automáticamente al modificar los valores anteriores.</small>
+ </div>
+</div>
 </div>
 <!----------------------> 
 
@@ -936,8 +973,19 @@ while($obj = $objetivos_res->fetch_assoc()){
 <div class="col-md-6">
 
  <div class="form-group">
-  <label for="avance_financiero" style="background-color:#588157; color:white">% AVANCE FINANCIERO</label>
-  <input type="text" class="form-control" id="avance_financiero" name="avance_financiero" value="<?php echo $row['avance_financiero']; ?>" readonly>
+  <label style="background-color:#1a5276; color:white">% AVANCE FINANCIERO</label>
+  <input 
+  style="
+    font-size: 26px;
+    font-weight: 700;
+    color: #1a5276;
+    background: #eaf0fb;
+    border: 1px solid #b8cfe8;
+    border-radius: 6px;
+    padding: 8px 14px;
+    letter-spacing: 0.5px;
+  "
+  type="text" class="form-control" id="avance_financiero" name="avance_financiero" value="<?php echo $row['avance_financiero']; ?>" readonly>
   <small class="text-muted">Calculado automáticamente en base al monto de actividades completadas sobre el total.</small>
  </div>
 
@@ -945,8 +993,19 @@ while($obj = $objetivos_res->fetch_assoc()){
 <div class="col-md-6">
 
  <div class="form-group">
-  <label for="avance_financiero" style="background-color:#588157; color:white">% AVANCE ACTIVIDADES</label>
-  <input type="text" class="form-control" id="avance_actividades" name="avance_actividades" value="<?php echo $row['avance_actividades']; ?>" readonly>
+  <label style="background-color:#1a5276; color:white">% AVANCE ACTIVIDADES</label>
+  <input 
+  style="
+    font-size: 26px;
+    font-weight: 700;
+    color: #1a5276;
+    background: #eaf0fb;
+    border: 1px solid #b8cfe8;
+    border-radius: 6px;
+    padding: 8px 14px;
+    letter-spacing: 0.5px;
+  "
+  type="text" class="form-control" id="avance_actividades" name="avance_actividades" value="<?php echo $row['avance_actividades']; ?>" readonly>
   <small class="text-muted">Calculado automáticamente en base al número de actividades completadas sobre el total.</small>
  </div>
 
@@ -1352,6 +1411,33 @@ document.addEventListener('keydown', function(e) {
 </script>
 
 <script>
+// ── Inversión Total: actualización en tiempo real ────────────────────────────
+function parseMonto(val) {
+    // Acepta formato chileno (1.234,56) y americano (1234.56)
+    val = val.replace(/\s/g, '');
+    // Si tiene punto como separador de miles y coma decimal → formato chileno
+    if (/\d+\.\d{3},/.test(val) || /,\d{2}$/.test(val)) {
+        val = val.replace(/\./g, '').replace(',', '.');
+    } else {
+        val = val.replace(/,/g, '');
+    }
+    return parseFloat(val) || 0;
+}
+
+function actualizarInversionTotal() {
+    var diseno   = parseMonto($('#p_diseno').val());
+    var ejecucion = parseMonto($('#p_ejecucion').val());
+    var total    = diseno + ejecucion;
+    // Formatear con punto como separador de miles y coma decimal (estilo chileno)
+    var formatted = total.toLocaleString('es-CL', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    $('#inversion_total_display').text(formatted);
+}
+
+$(document).ready(function() {
+    $('#p_diseno, #p_ejecucion').on('input change', actualizarInversionTotal);
+});
+// ────────────────────────────────────────────────────────────────────────────
+
 function guardar(){    
     $.confirm({
         title: '¡Atención!',
