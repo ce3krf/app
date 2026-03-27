@@ -676,7 +676,7 @@ function restaurar(){
         var lastAcerca = localStorage.getItem('acercaLastShown');
         var now = Date.now();
         if (!lastAcerca || now - parseInt(lastAcerca, 10) > 3600000) { // 1 hour = 3600000 ms
-            acerca();
+            //acerca();
             localStorage.setItem('acercaLastShown', now.toString());
         }
     });

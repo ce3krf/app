@@ -119,6 +119,74 @@ include('functions.php');
     margin-right: 4px;
     opacity: 0.7;
 }
+
+/* ── Segunda línea por registro ── */
+.nombre-principal {
+    font-weight: 600;
+    color: #1a1a2e;
+    line-height: 1.4;
+}
+
+.meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 5px;
+}
+
+.meta-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 2px 8px;
+    border-radius: 20px;
+    white-space: nowrap;
+    cursor: default;
+}
+
+.meta-badge i {
+    font-size: 10px;
+    opacity: 0.8;
+}
+
+.badge-total {
+    background: #e8f4fd;
+    color: #1565c0;
+    border: 1px solid #bbdefb;
+}
+
+.badge-impl {
+    background: #f3e5f5;
+    color: #6a1b9a;
+    border: 1px solid #e1bee7;
+}
+
+.badge-fin {
+    background: #e8f5e9;
+    color: #2e7d32;
+    border: 1px solid #c8e6c9;
+}
+
+.progress-mini {
+    display: inline-block;
+    width: 42px;
+    height: 5px;
+    background: #e0e0e0;
+    border-radius: 3px;
+    overflow: hidden;
+    vertical-align: middle;
+    margin-left: 3px;
+}
+
+.progress-mini-bar {
+    height: 100%;
+    border-radius: 3px;
+}
+
+.bar-impl  { background: #9c27b0; }
+.bar-fin   { background: #43a047; }
 </style> 
 	
 <script>
@@ -192,13 +260,17 @@ $(document).ready(function() {
             { targets: 35, visible: false },   // proyectos_user
             { targets: 36, visible: false },   // proyectos_created
             { targets: 37, visible: false },   // plan_maestro (raw, para filtro)
+            { targets: 38, visible: false },   // nombre plano (para exportar)
+            { targets: 39, visible: false },   // total inversión
+            { targets: 40, visible: false },   // avance actividades %
+            { targets: 41, visible: false },   // avance financiero %
         ],
 
         "sAjaxSource": "api/proyectos.php?token=" + token + "&task=list",
 
         "aoColumns": [
             { mData: mixVer,                   className: 'no-export' },
-            { mData: 'nombre' },
+            { mData: mixNombre,                className: 'no-export' },
             { mData: 'sector' },
             { mData: 'etapas_descripcion' },
             { mData: 'procesos_descripcion' },
@@ -235,6 +307,10 @@ $(document).ready(function() {
             { mData: 'proyectos_user' },
             { mData: 'proyectos_created' },
             { mData: 'plan_maestro' },   // índice 37 — valor raw para filtro
+            { mData: 'nombre' },         // índice 38 — nombre plano para exportar
+            { mData: 'total' },          // índice 39
+            { mData: 'avance_actividades' }, // índice 40
+            { mData: 'avance_financiero' },  // índice 41
         ],
 
         "language": {
@@ -341,6 +417,30 @@ $(document).ready(function() {
                '<img src="img/document.png" width="32"></a>';
     }
 
+    function mixNombre(data) {
+        var total  = parseFloat(data.total)              || 0;
+        var avImpl = parseFloat(data.avance_actividades) || 0;
+        var avFin  = parseFloat(data.avance_financiero)  || 0;
+
+        var totalFmt = total.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 });
+
+        var pImpl = Math.min(avImpl, 100);
+        var pFin  = Math.min(avFin,  100);
+
+        return '<div class="nombre-principal">' + (data.nombre || '') + '</div>' +
+               '<div class="meta-row">' +
+                 '<span class="meta-badge badge-total" title="Total Inversión"><i class="fa-solid fa-coins"></i>' + totalFmt + '</span>' +
+                 '<span class="meta-badge badge-impl" title="Avance de Implementación">' +
+                   '<i class="fa-solid fa-list-check"></i>Impl. ' + avImpl.toFixed(1) + '%' +
+                   '<span class="progress-mini"><span class="progress-mini-bar bar-impl" style="width:' + pImpl + '%"></span></span>' +
+                 '</span>' +
+                 '<span class="meta-badge badge-fin" title="Avance Financiero">' +
+                   '<i class="fa-solid fa-chart-line"></i>Fin. ' + avFin.toFixed(1) + '%' +
+                   '<span class="progress-mini"><span class="progress-mini-bar bar-fin" style="width:' + pFin + '%"></span></span>' +
+                 '</span>' +
+               '</div>';
+    }
+
     function mixPlan(data) {
         var esSi = (data.plan_maestro === 'Si');
         var color = esSi ? '#4a8f5e' : '#aaa';
@@ -445,6 +545,10 @@ function ayuda(){
                             <th>Usuario</th>
                             <th>Fecha Creación</th>
                             <th>Plan Maestro Raw</th>
+                            <th>Nombre</th>
+                            <th>Total Inversión</th>
+                            <th>Avance Implementación %</th>
+                            <th>Avance Financiero %</th>
                         </tr>
                     </thead>
                     <tbody></tbody>

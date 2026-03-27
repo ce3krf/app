@@ -83,7 +83,8 @@ if ( isset($_GET["task"]) && $_GET["task"] == "list" ) {
             p.codigo_idi,
             p.p_diseno,
             p.p_ejecucion,
-            p.total,
+            -- Presupuesto total = p_diseno + p_ejecucion
+            COALESCE(p.p_diseno, 0) + COALESCE(p.p_ejecucion, 0) AS total,
             COALESCE(e.etapas_descripcion, '')   AS etapas_descripcion,
             COALESCE(pr.procesos_descripcion, '') AS procesos_descripcion,
             p.finicio,
@@ -93,20 +94,70 @@ if ( isset($_GET["task"]) && $_GET["task"] == "list" ) {
             p.instituciones_vinculadas,
             p.beneficiarios,
             p.informacion,
-            p.avance_financiero,
-            p.avance_actividades,
+            p.lat,
+            p.lng,
+            p.proyectos_user,
+            p.proyectos_created,
+            p.proyectos_updated,
+
+            -- Total de actividades del proyecto
+            COUNT(act.id) AS total_actividades,
+
+            -- Total de actividades completadas
+            SUM(CASE WHEN act.estado = 'Completa' THEN 1 ELSE 0 END) AS actividades_completas,
+
+            -- Avance de implementación (valor guardado, actualizado por _recalcular_avances)
+            COALESCE(p.avance_actividades, 0) AS avance_actividades,
+
+            -- Suma de montos de actividades completadas
+            COALESCE(SUM(CASE WHEN act.estado = 'Completa' THEN act.monto ELSE 0 END), 0) AS monto_actividades_completas,
+
+            -- Avance financiero (valor guardado, actualizado por _recalcular_avances)
+            COALESCE(p.avance_financiero, 0) AS avance_financiero
+
+        FROM proyectos p
+        LEFT JOIN sectores s   ON p.sector               = s.sector_id
+        LEFT JOIN etapas   e   ON p.etapa                = e.etapas_id
+        LEFT JOIN procesos pr  ON p.proceso              = pr.procesos_id
+        LEFT JOIN areas    a   ON p.unidad_responsable_id = a.id
+        LEFT JOIN actividades act ON act.proyecto = p.id
+        WHERE p.proyectos_status = 1
+        $sqla
+        GROUP BY
+            p.id,
+            p.instrumento,
+            p.preseleccionado,
+            p.nombre,
+            p.plan_maestro,
+            p.lineamiento_id,
+            p.lineamiento,
+            p.objetivo_id,
+            p.objetivo,
+            p.brecha,
+            p.descripcion,
+            p.localizacion,
+            s.sector_descripcion,
+            p.subsector,
+            p.tipo,
+            p.impacto_territorial,
+            p.foco_turismo,
+            p.codigo_idi,
+            p.p_diseno,
+            p.p_ejecucion,
+            e.etapas_descripcion,
+            pr.procesos_descripcion,
+            p.finicio,
+            p.ftermino,
+            p.fuente,
+            a.area,
+            p.instituciones_vinculadas,
+            p.beneficiarios,
+            p.informacion,
             p.lat,
             p.lng,
             p.proyectos_user,
             p.proyectos_created,
             p.proyectos_updated
-        FROM proyectos p
-        LEFT JOIN sectores s  ON p.sector               = s.sector_id
-        LEFT JOIN etapas   e  ON p.etapa                = e.etapas_id
-        LEFT JOIN procesos pr ON p.proceso               = pr.procesos_id
-        LEFT JOIN areas    a  ON p.unidad_responsable_id = a.id
-        WHERE p.proyectos_status = 1
-        $sqla
         ORDER BY p.nombre ASC
     ";
 
@@ -120,6 +171,13 @@ if ( isset($_GET["task"]) && $_GET["task"] == "list" ) {
 
     $data = [];
     while ($row = $result->fetch_array(MYSQLI_ASSOC)) {
+        // Asegurar que los valores numéricos sean del tipo correcto para JSON
+        $row['total']                       = (float) $row['total'];
+        $row['avance_actividades']          = (float) $row['avance_actividades'];
+        $row['avance_financiero']           = (float) $row['avance_financiero'];
+        $row['monto_actividades_completas'] = (float) $row['monto_actividades_completas'];
+        $row['total_actividades']           = (int)   $row['total_actividades'];
+        $row['actividades_completas']       = (int)   $row['actividades_completas'];
         $data[] = $row;
     }
 
@@ -176,6 +234,11 @@ if ( isset($_POST["task"]) && $_POST["task"] == "update" ) {
 
     $esc = fn($v) => mysqli_real_escape_string($db, $_POST[$v] ?? '');
 
+    // Calcular total = p_diseno + p_ejecucion
+    $p_diseno   = (float) ($_POST['p_diseno']   ?? 0);
+    $p_ejecucion = (float) ($_POST['p_ejecucion'] ?? 0);
+    $total_calculado = $p_diseno + $p_ejecucion;
+
     $sql  = "UPDATE proyectos SET ";
     $sql .= "nombre                  = '" . $esc('nombre')                  . "', ";
     $sql .= "plan_maestro            = '" . $esc('plan_maestro')            . "', ";
@@ -196,6 +259,7 @@ if ( isset($_POST["task"]) && $_POST["task"] == "update" ) {
     $sql .= "codigo_idi              = '" . $esc('codigo_idi')              . "', ";
     $sql .= "p_diseno                = '" . $esc('p_diseno')                . "', ";
     $sql .= "p_ejecucion             = '" . $esc('p_ejecucion')             . "', ";
+    $sql .= "total                   = '" . $total_calculado                . "', ";
     $sql .= "etapa                   = '" . $esc('etapa')                   . "', ";
     $sql .= "proceso                 = '" . $esc('proceso')                 . "', ";
     $sql .= "informacion             = '" . $esc('informacion')             . "', ";
@@ -205,8 +269,6 @@ if ( isset($_POST["task"]) && $_POST["task"] == "update" ) {
     $sql .= "unidad_responsable_id   = '" . $esc('unidad_responsable_id')   . "', ";
     $sql .= "instituciones_vinculadas= '" . $esc('instituciones_vinculadas') . "', ";
     $sql .= "beneficiarios           = '" . $esc('beneficiarios')           . "', ";
-    $sql .= "avance_financiero       = '" . $esc('avance_financiero')       . "', ";
-    $sql .= "avance_actividades      = '" . $esc('avance_actividades')      . "', ";
     $sql .= "lat                     = '" . $esc('lat')                     . "', ";
     $sql .= "lng                     = '" . $esc('lng')                     . "', ";
     $sql .= "proyectos_user          = '$proyectos_user_val' ";
@@ -217,6 +279,9 @@ if ( isset($_POST["task"]) && $_POST["task"] == "update" ) {
     if (!$result = $db->query($sql)) {
         die('Hay un error [' . $db->error . ']');
     }
+
+    // Recalcular avances y actualizarlos en la tabla
+    _recalcular_avances($db, (int) $_POST['proyectos_id']);
 }
 // **************************************************************************************
 
@@ -287,6 +352,11 @@ if ( isset($_POST["task"]) && $_POST["task"] == "insert" ) {
 
     $esc = fn($v) => mysqli_real_escape_string($db, $_POST[$v] ?? '');
 
+    // Calcular total = p_diseno + p_ejecucion
+    $p_diseno    = (float) ($_POST['p_diseno']    ?? 0);
+    $p_ejecucion = (float) ($_POST['p_ejecucion'] ?? 0);
+    $total_calculado = $p_diseno + $p_ejecucion;
+
     $sql  = "UPDATE proyectos SET ";
     $sql .= "nombre                  = '" . $esc('nombre')                  . "', ";
     $sql .= "plan_maestro            = '" . $esc('plan_maestro')            . "', ";
@@ -307,6 +377,7 @@ if ( isset($_POST["task"]) && $_POST["task"] == "insert" ) {
     $sql .= "codigo_idi              = '" . $esc('codigo_idi')              . "', ";
     $sql .= "p_diseno                = '" . $esc('p_diseno')                . "', ";
     $sql .= "p_ejecucion             = '" . $esc('p_ejecucion')             . "', ";
+    $sql .= "total                   = '" . $total_calculado                . "', ";
     $sql .= "etapa                   = '" . $esc('etapa')                   . "', ";
     $sql .= "proceso                 = '" . $esc('proceso')                 . "', ";
     $sql .= "informacion             = '" . $esc('informacion')             . "', ";
@@ -316,8 +387,6 @@ if ( isset($_POST["task"]) && $_POST["task"] == "insert" ) {
     $sql .= "unidad_responsable_id   = '" . $esc('unidad_responsable_id')   . "', ";
     $sql .= "instituciones_vinculadas= '" . $esc('instituciones_vinculadas') . "', ";
     $sql .= "beneficiarios           = '" . $esc('beneficiarios')           . "', ";
-    $sql .= "avance_financiero       = '" . $esc('avance_financiero')       . "', ";
-    $sql .= "avance_actividades      = '" . $esc('avance_actividades')      . "', ";
     $sql .= "lat                     = '" . $esc('lat')                     . "', ";
     $sql .= "lng                     = '" . $esc('lng')                     . "', ";
     $sql .= "proyectos_user          = '$proyectos_user_ins' ";
@@ -330,6 +399,68 @@ if ( isset($_POST["task"]) && $_POST["task"] == "insert" ) {
     } else {
         echo $nuevo_id;
     }
+}
+// **************************************************************************************
+
+
+
+
+// **************************************************************************************
+/**
+ * Recalcula y persiste avance_actividades, avance_financiero y total para un proyecto dado.
+ * Se llama después de INSERT o UPDATE de proyecto, y también puede invocarse desde
+ * el módulo de actividades cuando se modifica una actividad.
+ *
+ * @param mysqli $db        Conexión activa a la base de datos
+ * @param int    $proyecto_id  ID del proyecto a recalcular
+ */
+function _recalcular_avances(mysqli $db, int $proyecto_id): void {
+
+    // 1. Obtener presupuesto del proyecto
+    $q = "SELECT COALESCE(p_diseno,0) + COALESCE(p_ejecucion,0) AS total_presupuesto
+          FROM proyectos
+          WHERE id = $proyecto_id
+          LIMIT 1";
+    $r = $db->query($q);
+    if (!$r) return;
+    $proy = $r->fetch_assoc();
+    $total_presupuesto = (float) $proy['total_presupuesto'];
+
+    // 2. Estadísticas de actividades
+    $q2 = "
+        SELECT
+            COUNT(*)                                                    AS total_act,
+            SUM(CASE WHEN estado = 'Completa' THEN 1 ELSE 0 END)       AS act_completas,
+            COALESCE(SUM(CASE WHEN estado = 'Completa' THEN monto ELSE 0 END), 0) AS monto_completo
+        FROM actividades
+        WHERE proyecto = $proyecto_id
+    ";
+    $r2 = $db->query($q2);
+    if (!$r2) return;
+    $act = $r2->fetch_assoc();
+
+    $total_act     = (int)   $act['total_act'];
+    $act_completas = (int)   $act['act_completas'];
+    $monto_comp    = (float) $act['monto_completo'];
+
+    // 3. Calcular porcentajes
+    $avance_actividades = ($total_act > 0)
+        ? round($act_completas * 100.0 / $total_act, 2)
+        : 0.0;
+
+    $avance_financiero = ($total_presupuesto > 0)
+        ? round($monto_comp * 100.0 / $total_presupuesto, 2)
+        : 0.0;
+
+    // 4. Persistir en la tabla proyectos
+    $upd = "
+        UPDATE proyectos SET
+            avance_actividades = $avance_actividades,
+            avance_financiero  = $avance_financiero,
+            total              = $total_presupuesto
+        WHERE id = $proyecto_id
+    ";
+    $db->query($upd);
 }
 // **************************************************************************************
 ?>
