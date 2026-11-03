@@ -1,3 +1,7 @@
+<?php
+// Fondo aleatorio: img/00.jpg a img/03.jpg
+$fondo = 'img/' . sprintf('%02d', random_int(0, 3)) . '.jpg';
+?>
 <!DOCTYPE html>
 <html>
 
@@ -15,6 +19,10 @@
     <style>
         body {
             background-color: #f0f2f5 !important;
+            background-image: url('<?php echo $fondo; ?>');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
             min-height: 100vh;
             display: flex;
             align-items: center;

@@ -16,6 +16,16 @@ include('functions.php');
 $db->set_charset("utf8mb4");
 
 // ----------------------------------------------------------
+// 0. INSTRUMENTOS para el filtro
+// ----------------------------------------------------------
+$instrumentos_filtro = [];
+$res = $db->query("SELECT instrumentos_id, instrumentos_descripcion FROM instrumentos ORDER BY instrumentos_descripcion");
+if (!$res) die('Error instrumentos [' . $db->error . ']');
+while ($row = $res->fetch_assoc()) {
+    $instrumentos_filtro[] = $row;
+}
+
+// ----------------------------------------------------------
 // 1. PARÁMETROS del sistema
 // ----------------------------------------------------------
 if (!isset($row_param)) {
@@ -41,13 +51,12 @@ $etapas[0] = 'Sin etapa'; // al final
 // ----------------------------------------------------------
 $sectores = [];
 $res = $db->query("
-    SELECT DISTINCT s.sector_descripcion
+    SELECT DISTINCT TRIM(p.sector) AS sector_descripcion
     FROM proyectos p
-    INNER JOIN sectores s ON p.sector = s.sector_id
     WHERE p.proyectos_status = 1
-      AND s.sector_descripcion IS NOT NULL
-      AND s.sector_descripcion <> ''
-    ORDER BY s.sector_descripcion
+      AND p.sector IS NOT NULL
+      AND TRIM(p.sector) <> ''
+    ORDER BY sector_descripcion
 ");
 if (!$res) die('Error sectores [' . $db->error . ']');
 while ($row = $res->fetch_assoc()) {
@@ -59,13 +68,12 @@ while ($row = $res->fetch_assoc()) {
 // ----------------------------------------------------------
 $tipos = [];
 $res = $db->query("
-    SELECT DISTINCT t.tipo
+    SELECT DISTINCT TRIM(p.tipo) AS tipo
     FROM proyectos p
-    INNER JOIN tipo t ON p.tipo = t.id
     WHERE p.proyectos_status = 1
-      AND t.tipo IS NOT NULL
-      AND t.tipo <> ''
-    ORDER BY t.tipo
+      AND p.tipo IS NOT NULL
+      AND TRIM(p.tipo) <> ''
+    ORDER BY tipo
 ");
 if (!$res) die('Error tipos [' . $db->error . ']');
 while ($row = $res->fetch_assoc()) {
@@ -75,8 +83,10 @@ while ($row = $res->fetch_assoc()) {
 // ----------------------------------------------------------
 // 5. FILTROS desde GET (saneados)
 // ----------------------------------------------------------
-$filtro_sector = isset($_GET['sector']) ? trim($_GET['sector']) : '';
-$filtro_tipo   = isset($_GET['tipo'])   ? trim($_GET['tipo'])   : '';
+$filtro_sector      = isset($_GET['sector'])      ? trim($_GET['sector'])      : '';
+$filtro_tipo        = isset($_GET['tipo'])        ? trim($_GET['tipo'])        : '';
+$filtro_instrumento = isset($_GET['instrumento']) && $_GET['instrumento'] !== '' ? (int)$_GET['instrumento'] : null;
+$filtro_plan        = isset($_GET['plan'])        && in_array($_GET['plan'], ['Si','No']) ? $_GET['plan'] : '';
 
 // ----------------------------------------------------------
 // 6. CONSULTA PRINCIPAL
@@ -85,63 +95,58 @@ $filtro_tipo   = isset($_GET['tipo'])   ? trim($_GET['tipo'])   : '';
 //    Inversión:   SUM(actividades.monto) donde estado = 'Completa'
 //                 JOIN correcto: actividades.proyecto = proyectos.id
 //
-//    Agrupa por sector / tipo / etapa
+//    Agrupa por sector / etapa (Tipo solo se usa como filtro)
 //    etapa vacía o nula → etapa_id = 0 → "Sin etapa"
 // ----------------------------------------------------------
 $where = ["p.proyectos_status = 1"];
 
 if ($filtro_sector !== '') {
-    $where[] = "s.sector_descripcion = '" . $db->real_escape_string($filtro_sector) . "'";
+    $where[] = "TRIM(p.sector) = '" . $db->real_escape_string($filtro_sector) . "'";
 }
 if ($filtro_tipo !== '') {
-    $where[] = "t.tipo = '" . $db->real_escape_string($filtro_tipo) . "'";
+    $where[] = "TRIM(p.tipo) = '" . $db->real_escape_string($filtro_tipo) . "'";
+}
+if ($filtro_instrumento !== null) {
+    $where[] = "p.n_inst = " . $filtro_instrumento;
+}
+if ($filtro_plan !== '') {
+    $where[] = "p.seleccionada_pm_sjm = '" . $db->real_escape_string($filtro_plan) . "'";
 }
 
 $where_sql = implode(' AND ', $where);
 
 $sql = "
     SELECT
-        COALESCE(s.sector_descripcion, 'Sin sector')           AS area,
-        COALESCE(t.tipo, 'Sin tipo')                           AS tipo,
-        CASE
-            WHEN p.etapa IS NULL OR TRIM(p.etapa) = '' THEN 0
-            ELSE CAST(p.etapa AS UNSIGNED)
-        END                                                     AS etapa_id,
-        COALESCE(e.etapas_descripcion, 'Sin etapa')            AS etapa_desc,
-        COUNT(DISTINCT p.id)                                    AS cantidad,
-        -- Presupuesto: suma directa sobre proyectos (sin JOIN a actividades para evitar fan-out)
-        SUM(DISTINCT COALESCE(p.p_diseno, 0) + COALESCE(p.p_ejecucion, 0))
-                                                                AS presupuesto,
-        -- Inversión: suma de actividades Completa
-        -- NULLIF(monto_final, 0) trata el 0 como nulo para priorizar monto cuando monto_final=0
-        COALESCE((
-            SELECT SUM(COALESCE(NULLIF(a2.monto_final, 0), a2.monto, 0))
-            FROM actividades a2
-            INNER JOIN proyectos p2 ON p2.id = a2.proyecto
-            LEFT JOIN sectores  s2 ON p2.sector = s2.sector_id
-            LEFT JOIN tipo      t2 ON p2.tipo   = t2.id
-            WHERE a2.estado = 'Completa'
-              AND p2.proyectos_status = 1
-              AND COALESCE(s2.sector_descripcion, 'Sin sector') = COALESCE(s.sector_descripcion, 'Sin sector')
-              AND COALESCE(t2.tipo, 'Sin tipo')                 = COALESCE(t.tipo, 'Sin tipo')
-              AND CASE
-                    WHEN p2.etapa IS NULL OR TRIM(p2.etapa) = '' THEN 0
-                    ELSE CAST(p2.etapa AS UNSIGNED)
-                  END = CASE
-                    WHEN p.etapa IS NULL OR TRIM(p.etapa) = '' THEN 0
-                    ELSE CAST(p.etapa AS UNSIGNED)
-                  END
-        ), 0)                                                   AS inversion
-    FROM proyectos p
-    LEFT JOIN sectores   s ON p.sector = s.sector_id
-    LEFT JOIN tipo       t ON p.tipo   = t.id
-    LEFT JOIN etapas     e ON e.etapas_id = CASE
-                                WHEN p.etapa IS NULL OR TRIM(p.etapa) = '' THEN NULL
-                                ELSE CAST(p.etapa AS UNSIGNED)
-                              END
-    WHERE {$where_sql}
-    GROUP BY area, tipo, etapa_id, etapa_desc
-    ORDER BY area, tipo, etapa_id
+        x.area,
+        x.etapa_id,
+        MAX(x.etapa_desc)   AS etapa_desc,
+        COUNT(*)            AS cantidad,
+        SUM(x.presupuesto)  AS presupuesto,
+        SUM(x.inversion)    AS inversion
+    FROM (
+        SELECT
+            p.id,
+            COALESCE(NULLIF(TRIM(p.sector), ''), 'Sin sector')            AS area,
+            COALESCE(p.cod_etapa_actual, 0)                               AS etapa_id,
+            COALESCE(NULLIF(TRIM(p.etapa_actual), ''), 'Sin etapa')       AS etapa_desc,
+            -- Presupuesto: costo total del proyecto (guardado o calculado)
+            COALESCE(
+                NULLIF(p.suma_costo_total, 0),
+                COALESCE(p.costos_perfil_prefactibilidad, 0) + COALESCE(p.costos_diseno, 0) + COALESCE(p.costos_ejecucion, 0)
+            )                                                             AS presupuesto,
+            -- Inversión: actividades Completa (monto_final si es > 0, si no monto)
+            COALESCE(a.inversion, 0)                                      AS inversion
+        FROM proyectos p
+        LEFT JOIN (
+            SELECT proyecto, SUM(COALESCE(NULLIF(monto_final, 0), monto, 0)) AS inversion
+            FROM actividades
+            WHERE estado = 'Completa'
+            GROUP BY proyecto
+        ) a ON a.proyecto = p.id
+        WHERE {$where_sql}
+    ) x
+    GROUP BY x.area, x.etapa_id
+    ORDER BY x.area, x.etapa_id
 ";
 
 $res_datos = $db->query($sql);
@@ -149,23 +154,25 @@ if (!$res_datos) die('Error consulta principal [' . $db->error . ']');
 
 // ----------------------------------------------------------
 // 7. PIVOT EN PHP
-//    $pivot[ "area||tipo" ][ etapa_id ] = [
+//    $pivot[ area ][ etapa_id ] = [
 //        'cantidad', 'presupuesto', 'inversion', 'porcentaje'
 //    ]
 // ----------------------------------------------------------
-$pivot       = [];
-$filas_orden = [];
+$pivot        = [];
+$filas_orden  = [];
+$etapas_extra = [];
 
 while ($row = $res_datos->fetch_assoc()) {
-    $clave    = $row['area'] . '||' . $row['tipo'];
+    $clave    = $row['area'];
     $etapa_id = (int)$row['etapa_id'];
     $pres     = (float)$row['presupuesto'];
     $inv      = (float)$row['inversion'];
     $pct      = ($pres > 0) ? round(($inv / $pres) * 100, 1) : 0;
+    if ($etapa_id > 0 && !isset($etapas[$etapa_id])) $etapas_extra[$etapa_id] = $row['etapa_desc'];
 
     if (!isset($pivot[$clave])) {
         $pivot[$clave]       = [];
-        $filas_orden[$clave] = ['area' => $row['area'], 'tipo' => $row['tipo']];
+        $filas_orden[$clave] = ['area' => $row['area']];
     }
 
     $pivot[$clave][$etapa_id] = [
@@ -174,6 +181,19 @@ while ($row = $res_datos->fetch_assoc()) {
         'inversion'   => $inv,
         'porcentaje'  => $pct,
     ];
+}
+
+// ----------------------------------------------------------
+// Etapas presentes en proyectos (cod_etapa_actual) que no
+// están en la tabla etapas: se agregan como columna para no
+// perder proyectos. "Sin etapa" (0) queda siempre al final.
+// ----------------------------------------------------------
+foreach ($etapas_extra as $eid => $edesc) {
+    if (!isset($etapas[$eid])) {
+        unset($etapas[0]);
+        $etapas[$eid] = $edesc;
+        $etapas[0]    = 'Sin etapa';
+    }
 }
 
 // ----------------------------------------------------------
@@ -211,7 +231,7 @@ $porcentaje_general = ($total_presupuesto > 0)
 // ----------------------------------------------------------
 $datos_export = [];
 foreach ($filas_orden as $clave => $info) {
-    $fila = ['area' => $info['area'], 'tipo' => $info['tipo'], 'etapas' => []];
+    $fila = ['area' => $info['area'], 'etapas' => []];
     foreach ($etapas as $etapa_id => $etapa_desc) {
         $fila['etapas'][$etapa_id] = isset($pivot[$clave][$etapa_id])
             ? $pivot[$clave][$etapa_id]
@@ -314,12 +334,6 @@ body { background-color: #f8f9fa; }
     min-width: 150px;
 }
 
-.tipo-cell {
-    color: #555;
-    font-size: 12px;
-    border-right: 2px solid var(--secondary) !important;
-    min-width: 120px;
-}
 
 /* Separador visual entre grupos de etapa */
 .etapa-group-sep { border-right: 2px solid var(--border) !important; }
@@ -673,6 +687,28 @@ body { background-color: #f8f9fa; }
                         <div class="filter-group">
 
                             <div class="filter-item">
+                                <label for="instrumento"><i class="fas fa-layer-group"></i> Instrumento</label>
+                                <select class="form-select" name="instrumento" id="instrumento">
+                                    <option value="">Todos los instrumentos</option>
+                                    <?php foreach ($instrumentos_filtro as $inst) { ?>
+                                    <option value="<?php echo $inst['instrumentos_id']; ?>"
+                                        <?php if ($filtro_instrumento == $inst['instrumentos_id']) echo 'selected'; ?>>
+                                        <?php echo htmlspecialchars($inst['instrumentos_descripcion']); ?>
+                                    </option>
+                                    <?php } ?>
+                                </select>
+                            </div>
+
+                            <div class="filter-item">
+                                <label for="plan"><i class="fas fa-clipboard-list"></i> Plan Maestro</label>
+                                <select class="form-select" name="plan" id="plan">
+                                    <option value="">Todos</option>
+                                    <option value="Si"  <?php if ($filtro_plan === 'Si') echo 'selected'; ?>>S&iacute;</option>
+                                    <option value="No"  <?php if ($filtro_plan === 'No') echo 'selected'; ?>>No</option>
+                                </select>
+                            </div>
+
+                            <div class="filter-item">
                                 <label for="sector">Sector</label>
                                 <select class="form-select" name="sector" id="sector">
                                     <option value="">Todos los sectores</option>
@@ -702,7 +738,7 @@ body { background-color: #f8f9fa; }
                                 <button type="submit" class="btn-custom btn-primary-custom">
                                     <i class="fas fa-filter"></i> Aplicar
                                 </button>
-                                <?php if ($filtro_sector !== '' || $filtro_tipo !== '') { ?>
+                                <?php if ($filtro_sector !== '' || $filtro_tipo !== '' || $filtro_instrumento !== null || $filtro_plan !== '') { ?>
                                 <a href="?" class="btn-custom btn-secondary-custom">
                                     <i class="fas fa-times"></i> Limpiar
                                 </a>
@@ -736,10 +772,9 @@ body { background-color: #f8f9fa; }
                 <div class="table-wrapper">
                 <table id="data-table" class="table table-sm">
                     <thead>
-                        <!-- Fila 1: Sector | Tipo | [Etapa 1] | [Etapa 2] | ... | [Sin etapa] | TOTAL -->
+                        <!-- Fila 1: Sector | [Etapa 1] | [Etapa 2] | ... | [Sin etapa] | TOTAL -->
                         <tr class="header-etapas">
                             <th class="left-align" rowspan="2">Sector</th>
-                            <th class="left-align" rowspan="2">Tipo</th>
                             <?php
                             $num_etapas = count($etapas);
                             $col_idx = 0;
@@ -787,7 +822,6 @@ body { background-color: #f8f9fa; }
                     ?>
                         <tr>
                             <td class="sector-cell"><?php echo htmlspecialchars($fila['area']); ?></td>
-                            <td class="tipo-cell"><?php echo htmlspecialchars($fila['tipo']); ?></td>
 
                             <?php foreach ($etapas as $etapa_id => $etapa_desc) {
                                 $col_idx++;
@@ -845,7 +879,7 @@ body { background-color: #f8f9fa; }
 
                     <tfoot>
                         <tr>
-                            <td colspan="2" class="total-label">TOTALES</td>
+                            <td class="total-label">TOTALES</td>
                             <?php foreach ($etapas as $etapa_id => $etapa_desc) {
                                 $tp = $totales_etapa[$etapa_id]['presupuesto'];
                                 $ti = $totales_etapa[$etapa_id]['inversion'];
@@ -889,7 +923,7 @@ function exportToExcel() {
         const data = [];
 
         // Fila 1: encabezados de etapas
-        const row1 = ['Sector', 'Tipo'];
+        const row1 = ['Sector'];
         <?php foreach ($etapas as $etapa_id => $etapa_desc) {
             echo "row1.push('" . addslashes($etapa_desc) . "', '', '');\n";
         } ?>
@@ -897,7 +931,7 @@ function exportToExcel() {
         data.push(row1);
 
         // Fila 2: sub-encabezados
-        const row2 = ['', ''];
+        const row2 = [''];
         <?php foreach ($etapas as $etapa_id => $etapa_desc) { ?>
         row2.push('Presupuesto', 'Inversión', '% Avance');
         <?php } ?>
@@ -916,7 +950,6 @@ function exportToExcel() {
 
             echo "data.push([\n";
             echo "  '" . addslashes($fila['area']) . "',\n";
-            echo "  '" . addslashes($fila['tipo']) . "',\n";
             foreach ($etapas as $etapa_id => $etapa_desc) {
                 $d   = $fila['etapas'][$etapa_id];
                 $p   = $d['presupuesto'];
@@ -930,7 +963,7 @@ function exportToExcel() {
 
         // Fila totales
         data.push([
-            'TOTALES', '',
+            'TOTALES',
             <?php foreach ($etapas as $etapa_id => $etapa_desc) {
                 $tp = $totales_etapa[$etapa_id]['presupuesto'];
                 $ti = $totales_etapa[$etapa_id]['inversion'];
@@ -944,7 +977,7 @@ function exportToExcel() {
         const ws = XLSX.utils.aoa_to_sheet(data);
 
         // Anchos de columna
-        const colWidths = [{ wch: 25 }, { wch: 20 }];
+        const colWidths = [{ wch: 25 }];
         <?php foreach ($etapas as $etapa_id => $etapa_desc) { ?>
         colWidths.push({ wch: 14 }, { wch: 14 }, { wch: 10 });
         <?php } ?>

@@ -2,7 +2,7 @@
 <div style="height:25px;"></div>
 <footer class="py-4 text-center footer-white">
     <div class="container">
-        <span class="footer-title"><?php echo strtoupper($row_param["parametros_titulo"]);?></span>
+        <span class="footer-title"><?php echo $row_param["parametros_titulo"];?></span>
         <div class="logos">
             <a href="https://www.gobiernosantiago.cl/" target="_blank" rel="noopener">
                 <img src="img/lgore.png" alt="Gobierno Regional Metropolitano de Santiago">
@@ -77,7 +77,7 @@ $(document).ready(function() {
     if ( ($perfil == "INVITADO") && (!in_array($script, $paginas_invitado))){
         ?>
         <script>
-            $('button').prop('disabled', true);
+            $('button').not('#menu-toggle').prop('disabled', true);
         </script>
         <?php
     }
@@ -85,7 +85,7 @@ $(document).ready(function() {
     if ( ($perfil == "ÁREA") && (!in_array($script, $paginas_area))){
         ?>
         <script>
-            $('button').prop('disabled', true);
+            $('button').not('#menu-toggle').prop('disabled', true);
         </script>
         <?php
     }

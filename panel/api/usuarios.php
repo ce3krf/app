@@ -6,7 +6,20 @@
 @session_start();
 
 include("../../conf/db.php");		
+require __DIR__ . '/inc_seguridad.php';
 include('../functions.php');
+require_once __DIR__ . '/../inc_auditoria.php';
+
+/** Instrumentos asignados al usuario, como texto (para auditoría). */
+function _audit_instrumentos(mysqli $db, int $id): ?string {
+    $r = $db->query("SELECT GROUP_CONCAT(CONCAT(ua.instrumentos_id, ' ', COALESCE(i.instrumentos_descripcion, ''))
+                     ORDER BY ua.instrumentos_id SEPARATOR ' | ') AS lista
+                     FROM usuarios_areas ua
+                     LEFT JOIN instrumentos i ON i.instrumentos_id = ua.instrumentos_id
+                     WHERE ua.usuarios_id = " . (int) $id);
+    $row = $r ? $r->fetch_assoc() : null;
+    return ($row && $row['lista'] !== null && $row['lista'] !== '') ? $row['lista'] : null;
+}
 
 $sql = "set names utf8";
 $result = $db->query($sql);    
@@ -87,6 +100,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['task'])) {
                 $result = $stmt->get_result();
                 $foto_data = $result->fetch_assoc();
                 
+                // Auditoría: foto del registro antes de borrar
+                $audit_antes = audit_snapshot($db, 'usuarios', $id);
+                $audit_instr = _audit_instrumentos($db, $id);
+
                 // Eliminar instrumentos del usuario primero
                 $sql_areas = "DELETE FROM usuarios_areas WHERE usuarios_id = ?";
                 $stmt_areas = $db->prepare($sql_areas);
@@ -103,6 +120,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['task'])) {
                     if ($foto_data && !empty($foto_data['usuarios_foto']) && file_exists($upload_dir . $foto_data['usuarios_foto'])) {
                         unlink($upload_dir . $foto_data['usuarios_foto']);
                     }
+                    audit_eliminar($db, 'usuarios', $id, $audit_antes,
+                        'Usuario eliminado' . ($audit_instr ? '. Instrumentos: ' . $audit_instr : ''));
+
                     $response['success'] = true;
                     $response['message'] = 'Usuario eliminado correctamente';
                 } else {
@@ -275,6 +295,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['task'])) {
                     $forzar_cambio_password = isset($_POST['usuarios_cambiarpassword']) ? 1 : 0;
                 }
 
+                // Auditoría: foto del registro antes de modificar
+                $audit_antes = $es_nuevo_usuario ? null : audit_snapshot($db, 'usuarios', $id);
+                $audit_instr = $es_nuevo_usuario ? null : _audit_instrumentos($db, $id);
+
                 // Ejecutar INSERT o UPDATE
                 if ($es_nuevo_usuario) {
                     $sql  = "INSERT INTO usuarios (usuarios_userid, usuarios_password, usuarios_nombre, usuarios_email, usuarios_profile, usuarios_status, usuarios_foto, usuarios_cambiarpassword, usuarios_updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())";
@@ -338,6 +362,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['task'])) {
                         }
                     }
                     
+                    // Auditoría
+                    if ($es_nuevo_usuario) {
+                        $instr = _audit_instrumentos($db, $id);
+                        audit_crear($db, 'usuarios', $id, 'Usuario creado' . ($instr ? '. Instrumentos: ' . $instr : ''));
+                    } else {
+                        audit_cambios($db, 'usuarios', $id, $audit_antes, [
+                            'instrumentos_asignados' => [$audit_instr, _audit_instrumentos($db, $id)],
+                        ]);
+                    }
+
                     $response['success'] = true;
                     $response['message'] = $es_nuevo_usuario ? 'Usuario creado correctamente' : 'Usuario actualizado correctamente';
                     $response['id']      = $id;

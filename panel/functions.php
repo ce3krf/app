@@ -42,11 +42,17 @@ $count = $restabla->num_rows;
 
 if($count < 1){
 	session_destroy();
+	// Llamada AJAX / API: responder 401. Página: redirigir al login.
+	if (basename(dirname($_SERVER['SCRIPT_NAME'] ?? '')) === 'api') {
+		http_response_code(401);
+		exit('Sesión no válida');
+	}
 	?>
 	<script>
 	window.location='login.php';
 	</script>		
 	<?php
+	exit;   // no seguir mostrando la página a quien no tiene sesión
 }
 
 $usuarios_foto = 'profiles/' . $row_tabla["usuarios_foto"];
@@ -56,7 +62,14 @@ $sql="select * from parametros where parametros_codproyecto='".$proyecto."' limi
 if(!$resparam = $db->query($sql)){
 	die('Hay un error [' . $db->error . ']');
 }
-$row_param = $resparam->fetch_assoc();      
+$row_param = $resparam->fetch_assoc();
+
+
+// Auditoría: registra la pantalla visitada
+require_once __DIR__ . '/inc_auditoria.php';
+if ($count >= 1) {
+	audit_ver_pagina($db);
+}
 
 
 

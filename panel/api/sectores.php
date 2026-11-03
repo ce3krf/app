@@ -13,7 +13,9 @@
 
 @session_start();
 include("../../conf/db.php");		
+require __DIR__ . '/inc_seguridad.php';
 include('functions.php');
+require_once __DIR__ . '/../inc_auditoria.php';
 
 if ( 
     (!isset($_GET["token"]) || $_GET["token"] != session_id()) && 
@@ -45,6 +47,8 @@ if ($_GET["task"] == "list") {
 }
 
 if ($_POST["task"] == "update") {
+    $antes = audit_snapshot($db, 'sectores', $_POST['sector_id']);
+
     $sql = "UPDATE sectores SET ";
     $sql .= "sector_descripcion = '" . mysqli_real_escape_string($db, $_POST['sector_descripcion']) . "', ";
     $sql .= "sector_color = '" . mysqli_real_escape_string($db, $_POST['sector_color']) . "' ";
@@ -53,15 +57,19 @@ if ($_POST["task"] == "update") {
     if(!$result = $db->query($sql)){
         die('Hay un error [' . $db->error . ']');
     }
+
+    audit_cambios($db, 'sectores', $_POST['sector_id'], $antes);
 }
 
 if ($_POST["task"] == "delete") {
     $id = $_POST["sector_id"];
     if (is_numeric($id)) {
+        $antes = audit_snapshot($db, 'sectores', $id);
         $sql = "DELETE FROM sectores WHERE sector_id = '$id'";
         if(!$result = $db->query($sql)){
             die('Hay un error [' . $db->error . ']');
         }
+        audit_eliminar($db, 'sectores', $id, $antes);
     }
 }
 
@@ -85,6 +93,7 @@ if ($_POST["task"] == "insert") {
     if(!$result = $db->query($sql)){
         die('Hay un error [' . $db->error . ']');
     } else {
+        audit_crear($db, 'sectores', $row["sector_id"]);
         echo $row["sector_id"];
     }
 }

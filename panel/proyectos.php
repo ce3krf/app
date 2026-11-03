@@ -3,12 +3,100 @@
 // Autor: Marcelo Jiménez
 // Fulltrust Software
 // https://www.fulltrust.net
-// Fecha última actualización: 2026-03-19 10:12:32
+// Fecha última actualización: 2026-10-05
 // ************************************************************
 
 @session_start();
 include("../conf/db.php");		
 include('functions.php');
+
+// Cargar instrumentos para el filtro
+$instrumentos_filtro = [];
+$res_inst_f = $db->query("SELECT instrumentos_id, instrumentos_descripcion FROM instrumentos ORDER BY instrumentos_descripcion");
+if ($res_inst_f) {
+    while ($r = $res_inst_f->fetch_assoc()) {
+        $instrumentos_filtro[] = $r;
+    }
+}
+
+// Columnas ocultas: definen el Excel exportado (en este orden) y sirven para los filtros.
+// Siguen las secciones y los nombres de la ficha de la iniciativa (proyectos_editar.php).
+// data = campo del JSON de la API; name = nombre interno (solo si data se repite con una columna visible)
+$columnas_ocultas = [
+    // INICIATIVA
+    ['data' => 'id',                                    'titulo' => 'Id'],
+    ['data' => 'numero',                                'titulo' => 'N°'],
+    ['data' => 'codigo',                                'titulo' => 'Código', 'name' => 'exp_codigo'],
+    ['data' => 'codigo_idi',                            'titulo' => 'IDI / BIP'],
+    ['data' => 'nombre_iniciativa',                     'titulo' => 'Nombre de la iniciativa'],
+    ['data' => 'seleccionada_pm_sjm',                   'titulo' => 'Preseleccionada Plan Maestro SJM'],
+    ['data' => 'tipo_de_inversion',                     'titulo' => 'Tipo de inversión'],
+    ['data' => 'pm',                                    'titulo' => 'PM'],
+    // DESCRIPCIÓN
+    ['data' => 'n_inst',                                'titulo' => 'Cód. Instrumento de origen'],
+    ['data' => 'instrumento_de_origen',                 'titulo' => 'Instrumento de origen'],
+    ['data' => 'cod_tipo',                              'titulo' => 'Cód. Tipología'],
+    ['data' => 'tipo',                                  'titulo' => 'Tipología de iniciativa'],
+    ['data' => 'descripcion',                           'titulo' => 'Descripción'],
+    ['data' => 'eje_estrategico',                       'titulo' => 'Eje estratégico'],
+    ['data' => 'objetivo_estrategico',                  'titulo' => 'Objetivo estratégico'],
+    ['data' => 'utr',                                   'titulo' => 'Unidad Técnica Responsable (UTR)'],
+    ['data' => 'cod_sector',                            'titulo' => 'Cód. Sector SNI'],
+    ['data' => 'sector',                                'titulo' => 'Sector SNI', 'name' => 'exp_sector'],
+    ['data' => 'cod_subsector',                         'titulo' => 'Cód. Subsector SNI'],
+    ['data' => 'subsector_de_inversion_sni',            'titulo' => 'Subsector SNI'],
+    // BRECHAS
+    ['data' => 'brecha_principal',                      'titulo' => 'Brecha principal'],
+    ['data' => 'brecha_especifica',                     'titulo' => 'Brecha específica'],
+    ['data' => 'atributo_al_que_responde',              'titulo' => 'Atributo al que responde'],
+    // EMPLAZAMIENTO
+    ['data' => 'localizacion',                          'titulo' => 'Alcance'],
+    ['data' => 'localizacion_2',                        'titulo' => 'Localización'],
+    ['data' => 'localidades',                           'titulo' => 'Localidades cubiertas'],
+    ['data' => 'point_x',                               'titulo' => 'Latitud'],
+    ['data' => 'point_y',                               'titulo' => 'Longitud'],
+    ['data' => 'n_ubicaciones',                         'titulo' => 'N° ubicaciones adicionales'],
+    ['data' => 'ubicaciones_adicionales',               'titulo' => 'Ubicaciones adicionales'],
+    // FINANCIAMIENTO
+    ['data' => 'indicador_2',                           'titulo' => 'Indicador'],
+    ['data' => 'unidad_de_medida',                      'titulo' => 'Unidad'],
+    ['data' => 'cantidad_proyectada',                   'titulo' => 'Cantidad proyectada'],
+    ['data' => 'cantidad_realizada',                    'titulo' => 'Cantidad realizada'],
+    ['data' => 'costos_perfil_prefactibilidad',         'titulo' => 'M$ Prefactibilidad'],
+    ['data' => 'costos_diseno',                         'titulo' => 'M$ Diseño'],
+    ['data' => 'costos_ejecucion',                      'titulo' => 'M$ Ejecución'],
+    ['data' => 'suma_costo_prefactibilidad_y_diseno',   'titulo' => 'M$ Prefactibilidad + Diseño'],
+    ['data' => 'total',                                 'titulo' => 'M$ Costo total'],
+    ['data' => 'costo_unitario_ejecucion',              'titulo' => 'Valor unidad ejecución M$'],
+    ['data' => 'origen_del_calculo_de_costos',          'titulo' => 'Origen del cálculo de costos'],
+    ['data' => 'fuente_financiamiento_prefactibilidad', 'titulo' => 'Fuente financiamiento Prefactibilidad'],
+    ['data' => 'fuente_financiamiento_diseno',          'titulo' => 'Fuente financiamiento Diseño'],
+    ['data' => 'fuente_financiamiento_ejecucion',       'titulo' => 'Fuente financiamiento Ejecución'],
+    ['data' => 'gasto_perfil_prefactibilidad',          'titulo' => 'Gasto Prefactibilidad'],
+    ['data' => 'gasto_diseno',                          'titulo' => 'Gasto Diseño'],
+    ['data' => 'gasto_ejecucion',                       'titulo' => 'Gasto Ejecución'],
+    // MANTENCIÓN
+    ['data' => 'responsable_del_mantenimiento',         'titulo' => 'Mantención: Responsable'],
+    ['data' => 'financiamiento_del_mantenimiento',      'titulo' => 'Mantención: Financiamiento'],
+    // CRONOGRAMA (AÑOS)
+    ['data' => 'inicio',                                'titulo' => 'Inicio', 'name' => 'exp_inicio'],
+    ['data' => 'termino',                               'titulo' => 'Término', 'name' => 'exp_termino'],
+    ['data' => 'plazos_ejecucion_anos',                 'titulo' => 'Plazo de ejecución (años)'],
+    // ESTADO
+    ['data' => 'cod_etapa_actual',                      'titulo' => 'Cód. Etapa actual'],
+    ['data' => 'etapa_actual',                          'titulo' => 'Etapa actual', 'name' => 'exp_etapa'],
+    ['data' => 'cod_actividad_actual',                  'titulo' => 'Cód. Actividad actual (proceso)'],
+    ['data' => 'actividad_actual',                      'titulo' => 'Actividad actual (proceso)', 'name' => 'exp_proceso'],
+    ['data' => 'avance_actividades',                    'titulo' => 'Avance implementación %'],
+    ['data' => 'avance_financiero',                     'titulo' => 'Avance financiero %'],
+    ['data' => 'total_actividades',                     'titulo' => 'N° actividades'],
+    ['data' => 'actividades_completas',                 'titulo' => 'N° actividades completas'],
+    // REGISTRO
+    ['data' => 'proyectos_user',                        'titulo' => 'Modificado por'],
+    ['data' => 'proyectos_created',                     'titulo' => 'Fecha creación'],
+    ['data' => 'proyectos_updated',                     'titulo' => 'Última actualización'],
+    ['data' => 'es_mio',                                'titulo' => 'Propia'],
+];
 ?>
 
 <!DOCTYPE html>
@@ -40,6 +128,12 @@ include('functions.php');
 <link rel="stylesheet" type="text/css" href="css/styles.css"/>
 
 <style>
+.fila-propia td {
+    background-color: #d4edda !important;
+}
+.fila-propia:hover td {
+    background-color: #c3e6cb !important;
+}
 .dataTables_filter{
     display: block !important;
     margin: 0px !important;
@@ -187,12 +281,15 @@ include('functions.php');
 
 .bar-impl  { background: #9c27b0; }
 .bar-fin   { background: #43a047; }
+
+.dt-buttons { display: none !important; }
 </style> 
 	
 <script>
 $(document).ready(function() {
 
     var token = $("#sid").val();
+    var columnasOcultas = <?php echo json_encode($columnas_ocultas, JSON_UNESCAPED_UNICODE); ?>;
 
     var tabla = $('#tabla').DataTable({
 
@@ -208,6 +305,13 @@ $(document).ready(function() {
             extend: 'excel',
             text: 'Exportar a Excel',
             className: 'btn-excel',
+            title: null,   // sin fila de título: la primera fila son los encabezados
+            // Nombre: Iniciativas_AAAA-MM-DD_HH-MM.xlsx
+            filename: function () {
+                var d = new Date(), z = function (n) { return (n < 10 ? '0' : '') + n; };
+                return 'Iniciativas_' + d.getFullYear() + '-' + z(d.getMonth() + 1) + '-' + z(d.getDate()) +
+                       '_' + z(d.getHours()) + '-' + z(d.getMinutes());
+            },
             exportOptions: { columns: ':not(.no-export)' }
         }],
 
@@ -216,102 +320,33 @@ $(document).ready(function() {
         bPaginate:       true,
         sPaginationType: "full_numbers",
         iDisplayLength:  50,
-        aaSorting:       [[1, 'asc']],
+        aaSorting:       [[2, 'asc']],
         dom: 'B<"top"ifp<"clear">>rt<"bottom"ip<"clear">>',
         responsive:  true,
         processing:  true,
 
-        columnDefs: [
-            { targets: 0,  visible: true,  width: "4%"  },                            // VER
-            { targets: 1,  visible: true,  width: "26%" },                            // nombre
-            { targets: 2,  visible: true,  width: "12%" },                            // sector
-            { targets: 3,  visible: true,  width: "12%" },                            // etapa
-            { targets: 4,  visible: true,  width: "12%" },                            // proceso
-            { targets: 5,  visible: true,  width: "6%"  },                            // finicio
-            { targets: 6,  visible: true,  width: "6%"  },                            // ftermino
-            { targets: 7,  visible: true,  width: "5%", className: 'text-center' },   // plan
-            { targets: 8,  visible: true,  width: "5%", className: 'text-center' },   // geo
-            { targets: 9,  visible: false },   // unidad_responsable
-            { targets: 10, visible: false },   // instrumento
-            { targets: 11, visible: false },   // preseleccionado
-            { targets: 12, visible: false },   // lineamiento_id
-            { targets: 13, visible: false },   // lineamiento
-            { targets: 14, visible: false },   // objetivo_id
-            { targets: 15, visible: false },   // objetivo
-            { targets: 16, visible: false },   // brecha
-            { targets: 17, visible: false },   // descripcion
-            { targets: 18, visible: false },   // localizacion
-            { targets: 19, visible: false },   // subsector
-            { targets: 20, visible: false },   // tipo
-            { targets: 21, visible: false },   // impacto_territorial
-            { targets: 22, visible: false },   // foco_turismo
-            { targets: 23, visible: false },   // codigo_idi
-            { targets: 24, visible: false },   // p_diseno
-            { targets: 25, visible: false },   // p_ejecucion
-            { targets: 26, visible: false },   // total
-            { targets: 27, visible: false },   // fuente
-            { targets: 28, visible: false },   // instituciones_vinculadas
-            { targets: 29, visible: false },   // beneficiarios
-            { targets: 30, visible: false },   // informacion
-            { targets: 31, visible: false },   // avance_financiero
-            { targets: 32, visible: false },   // avance_actividades
-            { targets: 33, visible: false },   // lat
-            { targets: 34, visible: false },   // lng
-            { targets: 35, visible: false },   // proyectos_user
-            { targets: 36, visible: false },   // proyectos_created
-            { targets: 37, visible: false },   // plan_maestro (raw, para filtro)
-            { targets: 38, visible: false },   // nombre plano (para exportar)
-            { targets: 39, visible: false },   // total inversión
-            { targets: 40, visible: false },   // avance actividades %
-            { targets: 41, visible: false },   // avance financiero %
-        ],
+        "sAjaxSource": "api/api_proyectos.php?token=" + token + "&task=list",
 
-        "sAjaxSource": "api/proyectos.php?token=" + token + "&task=list",
-
+        // Visibles: VER, Código, Nombre, Sector, Etapa, Proceso, Inicio, Término
+        // Luego las ocultas (definidas en PHP, mismo orden que el <thead>)
         "aoColumns": [
-            { mData: mixVer,                   className: 'no-export' },
-            { mData: mixNombre,                className: 'no-export' },
-            { mData: 'sector' },
-            { mData: 'etapas_descripcion' },
-            { mData: 'procesos_descripcion' },
-            { mData: 'finicio' },
-            { mData: 'ftermino' },
-            { mData: mixPlan,                  className: 'no-export' },
-            { mData: mixGeo,                   className: 'no-export' },
-            { mData: 'unidad_responsable' },
-            { mData: 'instrumento' },
-            { mData: 'preseleccionado' },
-            { mData: 'lineamiento_id' },
-            { mData: 'lineamiento' },
-            { mData: 'objetivo_id' },
-            { mData: 'objetivo' },
-            { mData: 'brecha' },
-            { mData: 'descripcion' },
-            { mData: 'localizacion' },
-            { mData: 'subsector' },
-            { mData: 'tipo' },
-            { mData: 'impacto_territorial' },
-            { mData: 'foco_turismo' },
-            { mData: 'codigo_idi' },
-            { mData: 'p_diseno' },
-            { mData: 'p_ejecucion' },
-            { mData: 'total' },
-            { mData: 'fuente' },
-            { mData: 'instituciones_vinculadas' },
-            { mData: 'beneficiarios' },
-            { mData: 'informacion' },
-            { mData: 'avance_financiero' },
-            { mData: 'avance_actividades' },
-            { mData: 'lat' },
-            { mData: 'lng' },
-            { mData: 'proyectos_user' },
-            { mData: 'proyectos_created' },
-            { mData: 'plan_maestro' },   // índice 37 — valor raw para filtro
-            { mData: 'nombre' },         // índice 38 — nombre plano para exportar
-            { mData: 'total' },          // índice 39
-            { mData: 'avance_actividades' }, // índice 40
-            { mData: 'avance_financiero' },  // índice 41
-        ],
+            { mData: mixVer,             name: 'ver',     className: 'no-export', width: '4%',  orderable: false },
+            { mData: 'codigo',           name: 'codigo',  className: 'text-nowrap no-export', width: '6%' },
+            { mData: mixNombre,          name: 'nombre',  className: 'no-export', width: '34%' },
+            { mData: 'sector',           name: 'sector',  width: '14%', className: 'no-export' },
+            { mData: 'etapa_actual',     name: 'etapa',   width: '14%', className: 'no-export' },
+            { mData: 'actividad_actual', name: 'proceso', width: '14%', className: 'no-export' },
+            { mData: 'inicio',           name: 'inicio',  width: '7%', className: 'text-center no-export' },
+            { mData: 'termino',          name: 'termino', width: '7%', className: 'text-center no-export' }
+        ].concat(columnasOcultas.map(function(c) {
+            return { mData: c.data, name: c.name || c.data, visible: false, defaultContent: '' };
+        })),
+
+        "createdRow": function(row, data) {
+            if (data.es_mio == 1) {
+                $(row).addClass('fila-propia');
+            }
+        },
 
         "language": {
             "sProcessing":   "<p align='center'><img src='img/ajax-loader.svg' /></p>",
@@ -341,9 +376,22 @@ $(document).ready(function() {
     });
 
     function agregarFiltros() {
-        if ($("#filtroSector").length === 0) {
+        if ($("#filtroInstrumento").length === 0) {
+
+            var filtroPropias = <?php echo ($_SESSION['usuarios_profile'] === 'ÁREA') ? "'<div class=\"filtro-item\"><label><i class=\"fa-solid fa-user-check\"></i>Propias</label><select id=\"filtroPropias\"><option value=\"\">Todas</option><option value=\"1\">Sí</option><option value=\"0\">No</option></select></div>'" : "''"; ?>;
+
+            var instrumentos = <?php echo json_encode(array_values($instrumentos_filtro)); ?>;
+            var optsInstrumento = '<option value="">Todos</option>';
+            instrumentos.forEach(function(inst) {
+                optsInstrumento += '<option value="' + inst.instrumentos_id + '">' + inst.instrumentos_descripcion + '</option>';
+            });
+
             $("#tabla_wrapper .top").prepend(
                 '<div class="filtros-bar">' +
+                  '<div class="filtro-item">' +
+                    '<label><i class="fa-solid fa-layer-group"></i>Instrumento</label>' +
+                    '<select id="filtroInstrumento">' + optsInstrumento + '</select>' +
+                  '</div>' +
                   '<div class="filtro-item">' +
                     '<label><i class="fa-solid fa-star"></i>Plan Maestro</label>' +
                     '<select id="filtroPlan">' +
@@ -356,54 +404,59 @@ $(document).ready(function() {
                     '<label><i class="fa-solid fa-building"></i>Sector</label>' +
                     '<select id="filtroSector"><option value="">Todos</option></select>' +
                   '</div>' +
-                  '<div class="filtro-item">' +
-                    '<label><i class="fa-solid fa-diagram-project"></i>Proceso</label>' +
-                    '<select id="filtroProceso"><option value="">Todos</option></select>' +
-                  '</div>' +
+                  filtroPropias +
                 '</div>'
             );
         }
 
         // Poblar opciones de Sector
         var sectores = [];
-        tabla.column(2).data().each(function(value) {
+        tabla.column('sector:name').data().each(function(value) {
             if (value && sectores.indexOf(value) === -1) sectores.push(value);
         });
         sectores.sort().forEach(function(s) {
-            $("#filtroSector").append('<option value="' + s + '">' + s + '</option>');
+            $("#filtroSector").append($('<option>').val(s).text(s));
         });
 
-        // Poblar opciones de Proceso
-        var procesos = [];
-        tabla.column(4).data().each(function(value) {
-            if (value && procesos.indexOf(value) === -1) procesos.push(value);
-        });
-        procesos.sort().forEach(function(p) {
-            $("#filtroProceso").append('<option value="' + p + '">' + p + '</option>');
-        });
+        // (Instrumento ya viene poblado desde PHP)
 
         // Filtro Sector
         $("#filtroSector").on("change", function() {
-            tabla.column(2).search($(this).val()).draw();
+            var val = $(this).val();
+            tabla.column('sector:name').search(
+                val === '' ? '' : '^' + $.fn.dataTable.util.escapeRegex(val) + '$',
+                true,
+                false
+            ).draw();
         });
 
-        // Filtro Proceso
-        $("#filtroProceso").on("change", function() {
+        // Filtro Instrumento (n_inst)
+        $("#filtroInstrumento").on("change", function() {
             var val = $(this).val();
-            tabla.column(4).search(
+            tabla.column('n_inst:name').search(
                 val === '' ? '' : '^' + $.fn.dataTable.util.escapeRegex(val) + '$',
+                true,
+                false
+            ).draw();
+        });
+
+        // Filtro Plan Maestro (seleccionada_pm_sjm Si/No)
+        $("#filtroPlan").on("change", function() {
+            var val = $(this).val();
+            tabla.column('seleccionada_pm_sjm:name').search(
+                val === '' ? '' : '^' + val + '$',
                 true,   // regex
                 false   // smart search off
             ).draw();
         });
 
-        // Filtro Plan Maestro (columna 37 con valor raw Si/No)
-        $("#filtroPlan").on("change", function() {
+        // Filtro Propias (es_mio, solo perfil ÁREA)
+        $("#filtroPropias").on("change", function() {
             var val = $(this).val();
-            tabla.column(37).search(
+            tabla.column('es_mio:name').search(
                 val === '' ? '' : '^' + val + '$',
-                true,   // regex
-                false   // smart search off
+                true,
+                false
             ).draw();
         });
     }
@@ -418,41 +471,7 @@ $(document).ready(function() {
     }
 
     function mixNombre(data) {
-        var total  = parseFloat(data.total)              || 0;
-        var avImpl = parseFloat(data.avance_actividades) || 0;
-        var avFin  = parseFloat(data.avance_financiero)  || 0;
-
-        var totalFmt = total.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 });
-
-        var pImpl = Math.min(avImpl, 100);
-        var pFin  = Math.min(avFin,  100);
-
-        return '<div class="nombre-principal">' + (data.nombre || '') + '</div>' +
-               '<div class="meta-row">' +
-                 '<span class="meta-badge badge-total" title="Total Inversión"><i class="fa-solid fa-coins"></i>' + totalFmt + '</span>' +
-                 '<span class="meta-badge badge-impl" title="Avance de Implementación">' +
-                   '<i class="fa-solid fa-list-check"></i>Impl. ' + avImpl.toFixed(1) + '%' +
-                   '<span class="progress-mini"><span class="progress-mini-bar bar-impl" style="width:' + pImpl + '%"></span></span>' +
-                 '</span>' +
-                 '<span class="meta-badge badge-fin" title="Avance Financiero">' +
-                   '<i class="fa-solid fa-chart-line"></i>Fin. ' + avFin.toFixed(1) + '%' +
-                   '<span class="progress-mini"><span class="progress-mini-bar bar-fin" style="width:' + pFin + '%"></span></span>' +
-                 '</span>' +
-               '</div>';
-    }
-
-    function mixPlan(data) {
-        var esSi = (data.plan_maestro === 'Si');
-        var color = esSi ? '#4a8f5e' : '#aaa';
-        var texto = esSi ? 'Sí' : 'No';
-        return '<span style="color:' + color + '; font-weight:600">' + texto + '</span>';
-    }
-
-    function mixGeo(data) {
-        var tieneGeo = (data.lat && data.lat !== '' && data.lng && data.lng !== '');
-        var color = tieneGeo ? '#4a8ecd' : '#aaa';
-        var texto = tieneGeo ? 'Sí' : 'No';
-        return '<span style="color:' + color + '; font-weight:600">' + texto + '</span>';
+        return '<div class="nombre-principal">' + (data.nombre_iniciativa || '') + '</div>';
     }
 
     $('#tabla').on('error.dt', function(e, settings, techNote, message) {
@@ -478,6 +497,7 @@ function ayuda(){
 
 <!-- Token de sesión para el Ajax -->
 <input type="hidden" id="sid" value="<?php echo session_id(); ?>">
+<input type="hidden" id="perfil_usuario" value="<?php echo htmlspecialchars($_SESSION['usuarios_profile'] ?? ''); ?>">
 
 <div id="wrapper">
     <div id="sidebar-wrapper">
@@ -501,54 +521,34 @@ function ayuda(){
                 </div>                        
             </div>
 
+<?php if ($_SESSION['usuarios_profile'] === 'ÁREA'): ?>
+            <div class="row mb-2">
+                <div class="col">
+                    <small class="text-muted">
+                        <span style="display:inline-block; width:10px; height:10px; background-color:#d4edda; border:1px solid #b1dfbb; border-radius:2px; margin-right:5px;"></span>
+                        Las iniciativas destacadas en verde pertenecen a sus instrumentos asignados.
+                    </small>
+                </div>
+            </div>
+<?php endif; ?>
+
             <div class="container mt-3">
                 <table id="tabla" class="table display hoverable" style="width:100% !important">
                     <thead>
                         <tr>
                             <!-- Visibles -->
-                            <th style="width:4%">VER</th>
-                            <th style="width:26%">Nombre</th>
-                            <th style="width:12%">Sector</th>
-                            <th style="width:12%">Etapa</th>
-                            <th style="width:12%">Proceso</th>
-                            <th style="width:6%">Inicio</th>
-                            <th style="width:6%">Término</th>
-                            <th style="width:5%">Plan</th>
-                            <th style="width:5%">Geo</th>
-                            <!-- Ocultas / solo Excel -->
-                            <th>Responsable</th>
-                            <th>Instrumento</th>
-                            <th>Preseleccionado</th>
-                            <th>ID Lineamiento</th>
-                            <th>Lineamiento</th>
-                            <th>ID Objetivo</th>
-                            <th>Objetivo</th>
-                            <th>Brecha</th>
-                            <th>Descripción</th>
-                            <th>Localización</th>
-                            <th>Subsector</th>
-                            <th>Tipo</th>
-                            <th>Impacto Territorial</th>
-                            <th>Foco Turismo</th>
-                            <th>Código IDI</th>
-                            <th>Presup. Diseño</th>
-                            <th>Presup. Ejecución</th>
-                            <th>Total</th>
-                            <th>Fuente</th>
-                            <th>Instituciones Vinculadas</th>
-                            <th>Beneficiarios</th>
-                            <th>Información</th>
-                            <th>Avance Financiero</th>
-                            <th>Avance Actividades</th>
-                            <th>Latitud</th>
-                            <th>Longitud</th>
-                            <th>Usuario</th>
-                            <th>Fecha Creación</th>
-                            <th>Plan Maestro Raw</th>
+                            <th>VER</th>
+                            <th>Código</th>
                             <th>Nombre</th>
-                            <th>Total Inversión</th>
-                            <th>Avance Implementación %</th>
-                            <th>Avance Financiero %</th>
+                            <th>Sector</th>
+                            <th>Etapa actual</th>
+                            <th>Proceso</th>
+                            <th>Inicio</th>
+                            <th>Término</th>
+                            <!-- Ocultas / solo Excel -->
+<?php foreach ($columnas_ocultas as $c): ?>
+                            <th><?php echo htmlspecialchars($c['titulo']); ?></th>
+<?php endforeach; ?>
                         </tr>
                     </thead>
                     <tbody></tbody>

@@ -14,7 +14,9 @@
 
 @session_start();
 include("../../conf/db.php");		
+require __DIR__ . '/inc_seguridad.php';
 include('functions.php');
+require_once __DIR__ . '/../inc_auditoria.php';
 
 if ( 
     (!isset($_GET["token"]) || $_GET["token"] != session_id()) && 
@@ -46,6 +48,8 @@ if ($_GET["task"] == "list") {
 }
 
 if ($_POST["task"] == "update") {
+    $antes = audit_snapshot($db, 'areas', $_POST['id']);
+
     $sql = "UPDATE areas SET ";
     $sql .= "area = '" . mysqli_real_escape_string($db, $_POST['area']) . "', ";
     $sql .= "color = '" . mysqli_real_escape_string($db, $_POST['color']) . "' ";
@@ -54,15 +58,19 @@ if ($_POST["task"] == "update") {
     if(!$result = $db->query($sql)){
         die('Hay un error [' . $db->error . ']');
     }
+
+    audit_cambios($db, 'areas', $_POST['id'], $antes);
 }
 
 if ($_POST["task"] == "delete") {
     $id = $_POST["id"];
     if (is_numeric($id)) {
+        $antes = audit_snapshot($db, 'areas', $id);
         $sql = "DELETE FROM areas WHERE id = '$id'";
         if(!$result = $db->query($sql)){
             die('Hay un error [' . $db->error . ']');
         }
+        audit_eliminar($db, 'areas', $id, $antes);
     }
 }
 
@@ -86,6 +94,7 @@ if ($_POST["task"] == "insert") {
     if(!$result = $db->query($sql)){
         die('Hay un error [' . $db->error . ']');
     } else {
+        audit_crear($db, 'areas', $row["id"]);
         echo $row["id"];
     }
 }

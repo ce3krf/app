@@ -11,7 +11,9 @@
 @session_start();
 
 include("../../conf/db.php");		
+require __DIR__ . '/inc_seguridad.php';
 include('../functions.php');
+require_once __DIR__ . '/../inc_auditoria.php';
 
 if ( 
     (!isset($_GET["token"]) || $_GET["token"] != session_id()) && 
@@ -29,6 +31,8 @@ if(!$preg = $db->query($q)){
 // UPDATE
 // **************************************************************************************
 if ( $_POST["task"] == "update" ){
+
+	$antes = audit_snapshot($db, 'indicadores', $_POST['indicadores_id']);
 
 	$sql = "UPDATE indicadores SET 
 		indicadores_nombre = '".mysqli_real_escape_string($db, $_POST['indicadores_nombre'])."',
@@ -48,6 +52,7 @@ if ( $_POST["task"] == "update" ){
 	if(!$result = $db->query($sql)){
     	die('Hay un error [' . $db->error . ']');
 	} else {
+		audit_cambios($db, 'indicadores', $_POST['indicadores_id'], $antes);
 		echo $_POST['indicadores_iniciativa'];
 	}	
 }
@@ -61,6 +66,8 @@ if ( $_POST["task"] == "delete" ){
 	$proyecto = $_POST["proyectos_id"];
 	
 	if ( is_numeric($id) ){
+		$antes = audit_snapshot($db, 'indicadores', $id);
+
 		$sql = "DELETE FROM indicadores 
 				WHERE indicadores_id = '$id' 
 				AND indicadores_iniciativa = '$proyecto'";
@@ -70,6 +77,7 @@ if ( $_POST["task"] == "delete" ){
 		if(!$result = $db->query($sql)){
 			die('Hay un error [' . $db->error . ']');
 		} else {
+			audit_eliminar($db, 'indicadores', $id, $antes, 'Indicador eliminado');
 			echo "OK";
 		}
 	}
@@ -114,6 +122,7 @@ if ( $_POST["task"] == "insert" ){
 	if(!$result = $db->query($sql)){
     	die('Hay un error [' . $db->error . ']');
 	} else {
+		audit_crear($db, 'indicadores', $db->insert_id, 'Indicador creado');
 		echo $_POST['indicadores_iniciativa'];
 	}	
 }

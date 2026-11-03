@@ -1,68 +1,69 @@
 <?php
 // grafico_por_etapa.php
+// Iniciativas por etapa, usando proyectos.cod_etapa_actual / proyectos.etapa_actual
 
-// ************************************************
-// DEBUG: Descomentar estas líneas si la conexión sigue fallando 
-// para ver el error exacto de PHP, ya sea de ruta o de conexión.
 // ini_set('display_errors', 1);
 // ini_set('display_startup_errors', 1);
 // error_reporting(E_ALL);
-// ************************************************
 
-header('Content-Type: application/json');
+header('Content-Type: application/json; charset=utf-8');
 
-// IMPORTANTE: Si la ruta es incorrecta, el script muere aquí.
-include_once("../../conf/db.php"); 
+include_once("../../conf/db.php");
+require __DIR__ . '/inc_seguridad.php';
 
-// 🚨 CONTROL DE FALLO DE CONEXIÓN: Captura si $db no fue definido o si la conexión falló
-if (!isset($db) || !($db instanceof mysqli) || (isset($db->connect_error) && $db->connect_error)) {
+if (!isset($db) || !($db instanceof mysqli) || $db->connect_error) {
     http_response_code(500);
-    echo json_encode(['error' => 'Fallo al conectar a la Base de Datos. Revise "../../conf/db.php" y asegúrese de que la variable de conexión se llama $db.']);
+    echo json_encode(['error' => 'Fallo de conexión a la Base de Datos. Revise "../../conf/db.php".']);
     exit;
 }
 
-// 1. Establecer el charset (necesario para UTF-8)
-$db->query("SET NAMES 'utf8'");
+$db->set_charset('utf8mb4');
 
-// Validar token (Lógica existente)
+// Validar token
 $token = isset($_GET['token']) ? $_GET['token'] : '';
-if (empty($token)) {
+if ($token === '') {
     http_response_code(401);
-    echo json_encode(['error' => 'Token no proporcionado. Asegúrate de que $("#sid").val() tenga el valor correcto.']);
+    echo json_encode(['error' => 'Token no proporcionado.']);
     exit;
 }
 
-// 2. Consulta para obtener conteos por etapa
+// Filtros (mismos que index.php)
+$where = "p.proyectos_status = 1";
+if (isset($_GET['instrumento']) && $_GET['instrumento'] !== '') {
+    $where .= " AND p.n_inst = " . (int)$_GET['instrumento'];
+}
+if (isset($_GET['plan']) && in_array($_GET['plan'], ['Si', 'No'], true)) {
+    $where .= " AND p.seleccionada_pm_sjm = '" . $_GET['plan'] . "'";
+}
+
+// Sin etapa se muestra al final
 $query = "
-    SELECT 
-        e.etapas_descripcion AS etapa,
+    SELECT
+        COALESCE(NULLIF(TRIM(MAX(p.etapa_actual)), ''), 'Sin etapa') AS etapa,
         COUNT(p.id) AS cuantos
-    FROM etapas e
-    INNER JOIN proyectos p ON e.etapas_id = p.etapa
-    GROUP BY e.etapas_id, e.etapas_descripcion
-    ORDER BY e.etapas_id ASC
+    FROM proyectos p
+    WHERE {$where}
+    GROUP BY p.cod_etapa_actual
+    ORDER BY (p.cod_etapa_actual IS NULL), p.cod_etapa_actual ASC
 ";
 
 $result = $db->query($query);
 
 if (!$result) {
-    // CAPTURA DE ERRORES SQL/DB
     http_response_code(500);
-    echo json_encode(['error' => 'Error en la consulta SQL (etapas): ' . $db->error . '. Revise su tabla y columnas.']);
+    echo json_encode(['error' => 'Error en la consulta SQL (etapas): ' . $db->error]);
     exit;
 }
 
 $data = [];
 while ($row = $result->fetch_assoc()) {
     $data[] = [
-        'etapa' => $row['etapa'],
+        'etapa'   => $row['etapa'],
         'cuantos' => (int)$row['cuantos']
     ];
 }
 
-// 3. Cierre
 $result->free();
 $db->close();
 
-echo json_encode($data);
-?>
+echo json_encode($data, JSON_UNESCAPED_UNICODE);

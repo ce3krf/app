@@ -17,7 +17,9 @@
 
 @session_start();
 
-include("../../conf/db.php");		
+include("../../conf/db.php");
+require __DIR__ . '/inc_seguridad.php';
+require_once __DIR__ . '/../inc_auditoria.php';		
 include('functions.php');
 
 
@@ -85,6 +87,8 @@ if ( $_POST["task"] == "update" ){
 
 
 	
+    $antes = audit_snapshot($db, 'patentes', $_POST['patentes_id']);
+
     $sql = "UPDATE patentes SET ";
     $sql .= "ROL = '" . mysqli_real_escape_string($db, $_POST['ROL']) . "', ";
     $sql .= "RUT = '" . mysqli_real_escape_string($db, $_POST['RUT']) . "', ";
@@ -101,6 +105,7 @@ if ( $_POST["task"] == "update" ){
 	if(!$result = $db->query($sql)){
     	die('Hay un error [' . $db->error . ']');
 	} else {
+		audit_cambios($db, 'patentes', $_POST['patentes_id'], $antes);
 	}	
 
 
@@ -121,11 +126,15 @@ if ( $_POST["task"] == "delete" ){
 	$id = $_POST["patentes_id"];
 	if ( is_numeric($id) ){
 
+		$antes = audit_snapshot($db, 'patentes', $id);
+
 		$sql = "delete from patentes where id = '$id' ";
 
 		if(!$result = $db->query($sql)){
 			die('Hay un error [' . $db->error . ']');
 		}
+
+		audit_eliminar($db, 'patentes', $id, $antes, 'Patente eliminado');
 
 	}
 	
@@ -179,6 +188,7 @@ if ( $_POST["task"] == "insert" ){
 	if(!$result = $db->query($sql)){
     	die('Hay un error [' . $db->error . ']');
 	} else {
+		audit_crear($db, 'patentes', $row["id"], 'Patente creado');
 		echo $row["id"];
 	}	
 

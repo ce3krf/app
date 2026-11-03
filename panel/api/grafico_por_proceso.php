@@ -8,6 +8,7 @@ ob_start();
 
 @session_start();
 include_once("../../conf/db.php");
+require __DIR__ . '/inc_seguridad.php';
 
 // Descartar TODO el output capturado
 ob_end_clean();

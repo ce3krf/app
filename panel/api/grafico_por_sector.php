@@ -1,61 +1,61 @@
 <?php
 // grafico_por_sector.php
-// ************************************************
-// DEBUG: Asegúrate de que los errores se muestren si hay un problema en la conexión
-// ************************************************
+// Iniciativas por sector. Se agrupa por el NOMBRE del sector (proyectos.sector),
+// no por cod_sector, para que no se fusionen sectores distintos que tengan
+// cod_sector vacío o repetido.
+
 //ini_set('display_errors', 1);
 //ini_set('display_startup_errors', 1);
 //error_reporting(E_ALL);
-// ************************************************
 
-header('Content-Type: application/json');
+header('Content-Type: application/json; charset=utf-8');
 
-// IMPORTANTE: Si esta ruta es incorrecta, el script muere aquí.
-include("../../conf/db.php"); 
+include_once("../../conf/db.php");
+require __DIR__ . '/inc_seguridad.php';
 
-// 🚨 CONTROL DE FALLO DE CONEXIÓN: Verifica que $db sea un objeto válido antes de usarlo
 if (!isset($db) || !($db instanceof mysqli) || $db->connect_error) {
     http_response_code(500);
-    echo json_encode(['error' => 'Fallo fatal de conexión a la Base de Datos. Revise "../../conf/db.php".']);
+    echo json_encode(['error' => 'Fallo de conexión a la Base de Datos. Revise "../../conf/db.php".']);
     exit;
 }
 
-// 1. Establecer el charset
-$db->query("SET NAMES 'utf8'");
+$db->set_charset('utf8mb4');
 
-// 2. Consulta de datos
+// Filtros (mismos que index.php)
+$where = "p.proyectos_status = 1";
+if (isset($_GET['instrumento']) && $_GET['instrumento'] !== '') {
+    $where .= " AND p.n_inst = " . (int)$_GET['instrumento'];
+}
+if (isset($_GET['plan']) && in_array($_GET['plan'], ['Si', 'No'], true)) {
+    $where .= " AND p.seleccionada_pm_sjm = '" . $_GET['plan'] . "'";
+}
+
 $query = "
-    SELECT 
-        s.sector_descripcion AS sector,
+    SELECT
+        COALESCE(NULLIF(TRIM(p.sector), ''), 'Sin sector') AS sector_nombre,
         COUNT(p.id) AS cuantos
-    FROM sectores s
-    INNER JOIN proyectos p ON s.sector_id = p.sector
-    GROUP BY s.sector_id, s.sector_descripcion
-    ORDER BY cuantos DESC
+    FROM proyectos p
+    WHERE {$where}
+    GROUP BY COALESCE(NULLIF(TRIM(p.sector), ''), 'Sin sector')
+    ORDER BY cuantos DESC, sector_nombre ASC
 ";
 
 $result = $db->query($query);
 
 if (!$result) {
-    // CAPTURA DE ERRORES SQL/DB
     http_response_code(500);
     echo json_encode(['error' => 'Error en la consulta SQL (sectores): ' . $db->error]);
     exit;
 }
 
-$data = [
-    'sectores' => [],
-    'cuantos' => []
-];
+$data = ['sectores' => [], 'cuantos' => []];
 
 while ($row = $result->fetch_assoc()) {
-    $data['sectores'][] = $row['sector'];
-    $data['cuantos'][] = (int)$row['cuantos'];
+    $data['sectores'][] = $row['sector_nombre'];
+    $data['cuantos'][]  = (int)$row['cuantos'];
 }
 
 $result->free();
 $db->close();
 
-// Devolver el JSON final
-echo json_encode($data);
-?>
+echo json_encode($data, JSON_UNESCAPED_UNICODE);

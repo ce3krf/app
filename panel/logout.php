@@ -1,7 +1,15 @@
 <?php
 
 @session_start();
-$_SESSION["logeado"] = ''; 
+
+// Auditoría: registrar la salida antes de limpiar la sesión
+if (!empty($_SESSION["net_fulltrust_fas_id"])) {
+	include("../conf/db.php");
+	require_once __DIR__ . '/inc_auditoria.php';
+	if (isset($db)) { audit_registrar($db, 'LOGOUT'); }
+}
+
+$_SESSION["logeado"] = '';
 
 	setcookie( "net_fulltrust_fas_logged", 			"", time() - ( 3600 * 3 ) );	
 	setcookie( "net_fulltrust_fas_users_id", 		"", time() - ( 3600 * 3 ) );	

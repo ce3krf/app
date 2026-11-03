@@ -2,7 +2,7 @@
 // Autor: Marcelo Jiménez
 // Fulltrust Software
 // https://www.fulltrust.net
-// Fecha última actualización: 2025-01-03 15:01:37
+// Fecha última actualización: 2026-10-24
 // ************************************************************
 
 var max = true;
@@ -77,8 +77,15 @@ function muestra(sector, proceso, origen, estado) {
                     var color = data.aaData[i].sector_color || '#3388ff';
                     var cuantos = 1;
 
-                    if (lat != '' && lng != '' && lat != '0' && lng != '0') 
-                        agregar(id, lat, lng, nom, sector_id, color, cuantos, sector_descripcion);
+                    // Ubicación principal
+                    if (lat != null && lng != null && lat != '' && lng != '' && lat != '0' && lng != '0') 
+                        agregar(id, lat, lng, nom, sector_id, color, cuantos, sector_descripcion, '');
+
+                    // Ubicaciones adicionales: mismo color y la misma ficha que la iniciativa
+                    var ubics = data.aaData[i].ubicaciones || [];
+                    for (var k = 0; k < ubics.length; k++) {
+                        agregar(id, ubics[k].lat, ubics[k].lng, nom, sector_id, color, cuantos, sector_descripcion, ubics[k].descripcion || '');
+                    }
 
                 }
             }
@@ -97,7 +104,8 @@ function muestra(sector, proceso, origen, estado) {
 }
 
 
-function agregar(id, lat, lng, nom, sector_id, color, cuantos, sector_descripcion){
+// ubicacion: descripción de la ubicación adicional ('' = ubicación principal)
+function agregar(id, lat, lng, nom, sector_id, color, cuantos, sector_descripcion, ubicacion){
 
     var icono = L.icon({ iconUrl: 'pins/c.png', iconSize: [48, 48] });    
 
@@ -137,6 +145,9 @@ var marker = L.circleMarker([lat, lng], {
         }
 
         tooltip = "<b>" + nom +  "</b><br>";
+        if (ubicacion) {
+            tooltip = tooltip + "Ubicación: " + $('<div>').text(ubicacion).html() + "<br>";
+        }
         tooltip = tooltip + "Sector: " + sector_descripcion + "<br>";
         tooltip = tooltip + '<span class="mas_info">'+"Click para más información"+ '</span>';
 
@@ -327,7 +338,7 @@ $('#tabla').DataTable({
 	{ data: 'nombre', 
 		render: function ( data, type, row ) {  
 			var cadena = '<b>' + (row.nombre || '') + '</b>';
-			if (row.codigo_bip) cadena += ' <small style="color:#aaa">BIP: ' + row.codigo_bip + '</small>';
+			if (row.codigo_idi) cadena += ' <small style="color:#aaa">IDI: ' + row.codigo_idi + '</small>';
 			return cadena;
 		},
 		targets: 1
@@ -349,7 +360,7 @@ $('#tabla').DataTable({
 		targets: 3
 	},
 
-	// Columna 4: Proceso (JOIN con tabla procesos)
+	// Columna 4: Proceso (proyectos.actividad_actual)
 	{ data: 'procesos_descripcion', 
 		render: function ( data, type, row ) { return data || ''; },
 		targets: 4

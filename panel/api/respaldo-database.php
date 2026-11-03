@@ -1,10 +1,12 @@
 <?php
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
+//error_reporting(E_ALL);
+//ini_set('display_errors', 1);
 
 
 
 include("../../conf/db.php");        
+$API_SOLO_ADMIN = true;
+require __DIR__ . '/inc_seguridad.php';
 
 
 // Configuración inicial
@@ -49,6 +51,10 @@ while ($row = $tablesResult->fetch_row()) {
         $dump .= "\n";
     }
 }
+
+// Auditoría
+require_once __DIR__ . '/../inc_auditoria.php';
+audit_registrar($db, 'RESPALDO', ['detalle' => 'Descarga de respaldo (api/respaldo-database.php)']);
 
 $db->close();
 

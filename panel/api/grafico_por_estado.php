@@ -11,6 +11,7 @@
 @session_start();
 
 include("../../conf/db.php");		
+require __DIR__ . '/inc_seguridad.php';
 include('functions.php');
 
 

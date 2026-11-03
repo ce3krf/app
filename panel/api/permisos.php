@@ -17,7 +17,9 @@
 
 @session_start();
 
-include("../../conf/db.php");		
+include("../../conf/db.php");
+require __DIR__ . '/inc_seguridad.php';
+require_once __DIR__ . '/../inc_auditoria.php';		
 include('functions.php');
 
 
@@ -115,6 +117,8 @@ if ( $_POST["task"] == "update" ){
 
 
 	
+    $antes = audit_snapshot($db, 'peredifica', $_POST['permisos_id']);
+
     $sql = "UPDATE peredifica SET ";
     $sql .= "nombre = '" . mysqli_real_escape_string($db, $_POST['nombre']) . "', ";
     $sql .= "direccion = '" . mysqli_real_escape_string($db, $_POST['direccion']) . "', ";
@@ -138,6 +142,7 @@ if ( $_POST["task"] == "update" ){
 	if(!$result = $db->query($sql)){
     	die('Hay un error [' . $db->error . ']');
 	} else {
+		audit_cambios($db, 'peredifica', $_POST['permisos_id'], $antes);
 	}	
 
 
@@ -158,11 +163,15 @@ if ( $_POST["task"] == "delete" ){
 	$id = $_POST["permisos_id"];
 	if ( is_numeric($id) ){
 
+		$antes = audit_snapshot($db, 'peredifica', $id);
+
 		$sql = "delete from peredifica where id = '$id' ";
 
 		if(!$result = $db->query($sql)){
 			die('Hay un error [' . $db->error . ']');
 		}
+
+		audit_eliminar($db, 'peredifica', $id, $antes, 'Permiso de edificación eliminado');
 
 	}
 	
@@ -222,6 +231,7 @@ if ( $_POST["task"] == "insert" ){
 	if(!$result = $db->query($sql)){
     	die('Hay un error [' . $db->error . ']');
 	} else {
+		audit_crear($db, 'peredifica', $row["id"], 'Permiso de edificación creado');
 		echo $row["id"];
 	}	
 

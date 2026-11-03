@@ -21,21 +21,29 @@
     	die('Hay un error [' . $db->error . ']');
 	}	
 	
-	$sql="select * from usuarios where usuarios_userid='".$_SESSION["usuario"]."'"; 
-	if(!$restabla = $db->query($sql)){
-    	die('Hay un error [' . $db->error . ']');
+	// Solo un ADMINISTRADOR con sesión válida puede descargar el respaldo
+	$count = 0;
+	if (($_SESSION['logeado'] ?? '') === 'si' && !empty($_SESSION['net_fulltrust_fas_id'])) {
+		$stmt = $db->prepare("SELECT usuarios_id FROM usuarios WHERE usuarios_id = ? AND usuarios_password = ?
+		                      AND usuarios_status = 1 AND usuarios_profile = 'ADMINISTRADOR' LIMIT 1");
+		$uid  = (int) $_SESSION['net_fulltrust_fas_id'];
+		$pass = (string) ($_SESSION['net_fulltrust_fas_users_password'] ?? '');
+		$stmt->bind_param('is', $uid, $pass);
+		$stmt->execute();
+		$count = $stmt->get_result()->num_rows;
 	}
-	$row_tabla = $restabla->fetch_assoc();  	
-	$count = $restabla->num_rows;
 	
 	if($count < 1){
-        session_destroy();
 		?>
         <script>
 		window.location='index.php';
 		</script>		
         <?php
+		exit;
 	}
+
+	require_once __DIR__ . '/inc_auditoria.php';
+	audit_registrar($db, 'RESPALDO', ['detalle' => 'Descarga de respaldo (respaldo_db.php)']);
 	
 	
 

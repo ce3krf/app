@@ -63,6 +63,14 @@
                 <span class="link-indicator"></span>
             </a>
         </li>
+        <?php if (($_SESSION['usuarios_profile'] ?? '') === 'ADMINISTRADOR') { ?>
+        <li class="nav-item">
+            <a class="nav-link sidebar-link" href="auditoria.php">
+                <span class="link-text">Auditoría</span>
+                <span class="link-indicator"></span>
+            </a>
+        </li>
+        <?php } ?>
         <li class="nav-item">
             <a class="nav-link sidebar-link" href="guia_uso.php">
                 <span class="link-text">Guía de uso</span>

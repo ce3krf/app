@@ -404,6 +404,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion']) && $_POST['
     $db->query($sqlReg);
     // fin *** NUEVO ***
 
+    audit_registrar($db, 'RESPALDO', ['detalle' => 'Respaldo de base de datos: ' . basename($zipFile)]);
+
     ?><script>window.location='<?php echo $zipFile;?>';</script><?php
 }
 ?>

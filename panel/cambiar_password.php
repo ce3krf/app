@@ -57,6 +57,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['task']) && $_POST['ta
         // Actualizar password en sesión
         $_SESSION['net_fulltrust_fas_users_password'] = $hash_nueva;
 
+        // Auditoría (sin guardar la contraseña)
+        audit_registrar($db, 'CAMBIO_PASSWORD', [
+            'tabla'       => 'usuarios',
+            'registro_id' => $uid,
+            'detalle'     => 'El usuario cambió su contraseña',
+        ]);
+
         $response['success'] = true;
         $response['message'] = 'Contraseña actualizada correctamente.';
 

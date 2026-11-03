@@ -11,7 +11,9 @@
 @session_start();
 
 include("../../conf/db.php");		
+require __DIR__ . '/inc_seguridad.php';
 include('functions.php');
+require_once __DIR__ . '/../inc_auditoria.php';
 
 
 if ( 
@@ -69,6 +71,8 @@ if ( $_POST["task"] == "update" ){
 
 
 	
+	$antes = audit_snapshot($db, 'actividades', $_POST['actividades_id']);
+
 	$sql ="update actividades set ";
 	$sql.="proyecto = '".mysqli_real_escape_string($db, $_POST['proyectos_id'])."', ";	
 	$sql.="actividad = '".mysqli_real_escape_string($db, $_POST['actividad'])."', ";		
@@ -92,6 +96,7 @@ if ( $_POST["task"] == "update" ){
 	if(!$result = $db->query($sql)){
     	die('Hay un error [' . $db->error . ']');
 	} else {
+		audit_cambios($db, 'actividades', $_POST['actividades_id'], $antes);
 	}	
 
 
@@ -113,11 +118,15 @@ if ( $_POST["task"] == "delete" ){
 	$proyecto = $_POST["proyectos_id"];
 	if ( is_numeric($id) ){
 
+		$antes = audit_snapshot($db, 'actividades', $id);
+
 		$sql = "delete from actividades where id = '$id' and proyecto = '$proyecto' ";
 
 		if(!$result = $db->query($sql)){
 			die('Hay un error [' . $db->error . ']');
 		}
+
+		audit_eliminar($db, 'actividades', $id, $antes, 'Actividad eliminada');
 
 	}
 	
@@ -208,6 +217,7 @@ if ( $_POST["task"] == "insert" ){
 	if(!$result = $db->query($sql)){
     	die('Hay un error [' . $db->error . ']');
 	} else {
+		audit_crear($db, 'actividades', $row['id'], 'Actividad creada');
 		echo $_POST['proyectos_id'];
 	}	
 

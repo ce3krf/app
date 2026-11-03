@@ -14,7 +14,9 @@
 
 @session_start();
 include("../../conf/db.php");		
+require __DIR__ . '/inc_seguridad.php';
 include('functions.php');
+require_once __DIR__ . '/../inc_auditoria.php';
 
 if ( 
     (!isset($_GET["token"]) || $_GET["token"] != session_id()) && 
@@ -46,6 +48,8 @@ if ($_GET["task"] == "list") {
 }
 
 if ($_POST["task"] == "update") {
+    $antes = audit_snapshot($db, 'instrumentos', $_POST['instrumentos_id']);
+
     $sql = "UPDATE instrumentos SET ";
     $sql .= "instrumentos_descripcion = '" . mysqli_real_escape_string($db, $_POST['instrumentos_descripcion']) . "' ";
     $sql .= "WHERE instrumentos_id='" . mysqli_real_escape_string($db, $_POST['instrumentos_id']) . "';";
@@ -53,15 +57,19 @@ if ($_POST["task"] == "update") {
     if(!$result = $db->query($sql)){
         die('Hay un error [' . $db->error . ']');
     }
+
+    audit_cambios($db, 'instrumentos', $_POST['instrumentos_id'], $antes);
 }
 
 if ($_POST["task"] == "delete") {
     $id = $_POST["instrumentos_id"];
     if (is_numeric($id)) {
+        $antes = audit_snapshot($db, 'instrumentos', $id);
         $sql = "DELETE FROM instrumentos WHERE instrumentos_id = '$id'";
         if(!$result = $db->query($sql)){
             die('Hay un error [' . $db->error . ']');
         }
+        audit_eliminar($db, 'instrumentos', $id, $antes);
     }
 }
 
@@ -84,6 +92,7 @@ if ($_POST["task"] == "insert") {
     if(!$result = $db->query($sql)){
         die('Hay un error [' . $db->error . ']');
     } else {
+        audit_crear($db, 'instrumentos', $row["instrumentos_id"]);
         echo $row["instrumentos_id"];
     }
 }
