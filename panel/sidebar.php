@@ -8,6 +8,13 @@
 
 <div class="sidebar-content p-0">
     <ul class="nav flex-column">
+
+        <li class="nav-item nav-title" style="margin-left: 10px; margin-top: 10px; font-weight: bold;">
+            <span class="nav-heading">
+                <span class="link-text">PANEL DE OPCIONES</span>
+            </span>
+        </li>
+
         <li class="nav-item">
             <a class="nav-link sidebar-link" href="index.php">
                 <span class="link-text">Inicio</span>
@@ -20,24 +27,22 @@
                 <span class="link-indicator"></span>
             </a>
         </li>
+
+        <li class="nav-item">
+            <a class="nav-link sidebar-link" href="#" target="_blank">
+                <span class="link-text">Seguimiento</span>
+                <span class="link-indicator"></span>
+            </a>
+        </li>        
+
         <li class="nav-item">
             <a class="nav-link sidebar-link" href="../proyectos" target="_blank">
                 <span class="link-text">Mapa</span>
                 <span class="link-indicator"></span>
             </a>
         </li>
-        <li class="nav-item">
-            <a class="nav-link sidebar-link" href="avance.php">
-                <span class="link-text">Avance implementación</span>
-                <span class="link-indicator"></span>
-            </a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link sidebar-link" href="avancei.php">
-                <span class="link-text">Avance financiero</span>
-                <span class="link-indicator"></span>
-            </a>
-        </li>
+
+
         
         <li class="nav-item">
             <div class="sidebar-divider"></div>

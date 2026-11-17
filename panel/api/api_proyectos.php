@@ -3,7 +3,7 @@
 // Autor: Marcelo Jiménez
 // Fulltrust Software
 // https://www.fulltrust.net
-// Fecha última actualización: 2026-10-05
+// Fecha última actualización: 2026-11-16
 // ************************************************************
 
 //error_reporting(E_ALL);
@@ -212,6 +212,41 @@ if ( isset($_GET["task"]) && $_GET["task"] == "list" ) {
 
 
 // **************************************************************************************
+// DETALLE PARA LA EXPORTACIÓN A EXCEL DEL LISTADO (todos los perfiles)
+//   GET task=export_detalle
+//   Devuelve localidades, fuentes de financiamiento y gasto por etapa
+//   de las iniciativas activas. El navegador cruza por proyecto_id con las filas exportadas.
+// **************************************************************************************
+if ( isset($_GET["task"]) && $_GET["task"] == "export_detalle" ) {
+
+    header('Content-Type: application/json; charset=utf-8');
+
+    $out = ['ok' => true, 'localidades' => $LOCALIDADES];
+
+    // financiamiento y gasto se enlazan por proyectos.numero
+    foreach (['financiamiento', 'gasto'] as $tabla_det) {
+        $sql = "
+            SELECT p.id AS proyecto_id, t.etapa, e.etapas_descripcion AS etapa_txt, t.monto, t.fuente
+            FROM $tabla_det t
+            INNER JOIN proyectos p ON p.numero = t.numero AND p.proyectos_status = 1
+            LEFT JOIN etapas e ON e.etapas_id = t.etapa
+            ORDER BY p.numero, t.etapa, t.id
+        ";
+        if (!$r = $db->query($sql)) {
+            die('Ha ocurrido un error ejecutando la consulta [' . $db->error . ']');
+        }
+        $out[$tabla_det] = $r->fetch_all(MYSQLI_ASSOC);
+    }
+
+    echo json_encode($out, JSON_INVALID_UTF8_SUBSTITUTE);
+    exit;
+}
+// **************************************************************************************
+
+
+
+
+// **************************************************************************************
 if ( isset($_POST["task"]) && $_POST["task"] == "update" ) {
 
     _validar_permiso_area($db, $perfil, $user_id, 'editar');
@@ -234,6 +269,18 @@ if ( isset($_POST["task"]) && $_POST["task"] == "update" ) {
         foreach (['ubicaciones', 'financiamiento', 'gasto'] as $tabla_hija) {
             $stmt = $db->prepare("UPDATE $tabla_hija SET numero = ? WHERE numero = ?");
             $stmt->bind_param('ii', $n_nuevo, $n_viejo);
+            $stmt->execute();
+        }
+    }
+
+    // Si cambió el código de la iniciativa, sus acciones lo siguen (acciones.codigo_iniciativa).
+    // Si el código queda vacío no se tocan, para no perderlas.
+    if ($antes && $despues) {
+        $c_viejo = trim((string) $antes['codigo']);
+        $c_nuevo = trim((string) $despues['codigo']);
+        if ($c_viejo !== '' && $c_nuevo !== '' && $c_viejo !== $c_nuevo) {
+            $stmt = $db->prepare("UPDATE acciones SET codigo_iniciativa = ? WHERE codigo_iniciativa = ?");
+            $stmt->bind_param('ss', $c_nuevo, $c_viejo);
             $stmt->execute();
         }
     }
@@ -284,6 +331,25 @@ if ( isset($_POST["task"]) && $_POST["task"] == "delete" ) {
                 $g_antes = audit_snapshot($db, 'gasto', $g['id']);
                 $db->query("DELETE FROM gasto WHERE id = " . (int) $g['id']);
                 audit_eliminar($db, 'gasto', $g['id'], $g_antes, 'Gasto por etapa eliminado junto con la iniciativa');
+            }
+
+            // Acciones de la iniciativa eliminada (por código), solo si ninguna otra iniciativa usa el mismo código
+            $cod = trim((string) $antes['codigo']);
+            if ($cod !== '') {
+                $stmt = $db->prepare("SELECT COUNT(*) AS c FROM proyectos WHERE codigo = ?");
+                $stmt->bind_param('s', $cod);
+                $stmt->execute();
+                if ((int) $stmt->get_result()->fetch_assoc()['c'] === 0) {
+                    $stmt = $db->prepare("SELECT id FROM acciones WHERE codigo_iniciativa = ?");
+                    $stmt->bind_param('s', $cod);
+                    $stmt->execute();
+                    $r = $stmt->get_result();
+                    while ($r && $a = $r->fetch_assoc()) {
+                        $a_antes = audit_snapshot($db, 'acciones', $a['id']);
+                        $db->query("DELETE FROM acciones WHERE id = " . (int) $a['id']);
+                        audit_eliminar($db, 'acciones', $a['id'], $a_antes, 'Acción eliminada junto con la iniciativa');
+                    }
+                }
             }
         }
     }

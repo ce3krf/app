@@ -3,7 +3,7 @@
 // Autor: Marcelo Jiménez
 // Fulltrust Software
 // https://www.fulltrust.net
-// Fecha última actualización: 2026-10-05
+// Fecha última actualización: 2026-11-16
 // ************************************************************
 ?>
 <?php
@@ -231,14 +231,53 @@ $solo_lectura = ($perfil_usuario === 'ÁREA' && !$es_nuevo && !in_array((int) ($
 
 
 // -----------------------------------------------------
-// Actividades
+// Acciones (tabla acciones, enlazada por acciones.codigo_iniciativa = proyectos.codigo)
+// Ordenadas por fecha de inicio para que la Gantt tenga sentido.
 // -----------------------------------------------------
-$result = null;
-if (!$es_nuevo) {
-    $sql = "SELECT * FROM actividades WHERE proyecto = " . (int) $row['id'] . " ORDER BY ano";
-    if (!$result = $db->query($sql)) {
-        die('Hay un error [' . $db->error . ']');
+$acciones        = [];
+$codigo_acciones = trim((string) ($row['codigo'] ?? ''));
+
+if (!$es_nuevo && $codigo_acciones !== '') {
+    $stmt = $db->prepare("
+        SELECT id, nombre_accion, inicio, fin, verificador
+        FROM acciones
+        WHERE codigo_iniciativa = ?
+        ORDER BY (inicio IS NULL), inicio, (fin IS NULL), fin, id
+    ");
+    $stmt->bind_param('s', $codigo_acciones);
+    $stmt->execute();
+    $acciones = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+}
+
+// Gantt semestral: índice de semestre = año * 2 + (0 = ene-jun, 1 = jul-dic)
+function semestre_idx($fecha) {
+    if (empty($fecha)) return null;
+    $t = strtotime($fecha);
+    if ($t === false) return null;
+    return (int) date('Y', $t) * 2 + ((int) date('n', $t) > 6 ? 1 : 0);
+}
+
+$gantt_ini = null;
+$gantt_fin = null;
+foreach ($acciones as $a) {
+    $si = semestre_idx($a['inicio']);
+    $sf = semestre_idx($a['fin']);
+    if ($si !== null) { $gantt_ini = ($gantt_ini === null) ? $si : min($gantt_ini, $si); }
+    if ($sf !== null) { $gantt_fin = ($gantt_fin === null) ? $sf : max($gantt_fin, $sf); }
+}
+if ($gantt_ini !== null && $gantt_fin === null) $gantt_fin = $gantt_ini;
+if ($gantt_fin !== null && $gantt_ini === null) $gantt_ini = $gantt_fin;
+
+// Columnas de la Gantt agrupadas por año: [año => [idx_S1?, idx_S2?]]
+$gantt_anos = [];
+if ($gantt_ini !== null) {
+    for ($s = $gantt_ini; $s <= $gantt_fin; $s++) {
+        $gantt_anos[intdiv($s, 2)][] = $s;
     }
+}
+
+function fecha_cl($f) {
+    return empty($f) ? '-' : date('d/m/Y', strtotime($f));
 }
 
 
@@ -537,6 +576,19 @@ $lng_actual = $row['point_y'] ?? '';
 .ubic-btn { border: 0; background: none; padding: 0; cursor: pointer; }
 .ubic-icono { width: 28px; height: 28px; border-radius: 50%; background: #e8743b; color: #fff; border: 2px solid #fff;
     box-shadow: 0 1px 4px rgba(0,0,0,.4); display: flex; align-items: center; justify-content: center; font: 700 12px/1 sans-serif; }
+/* Acciones: Gantt semestral (mismo azul que la planilla) */
+.gantt-wrap { overflow-x: auto; }
+.gantt-tabla { margin-bottom: 4px; }
+.gantt-tabla td { vertical-align: middle; }
+.gantt-tabla .gantt-ano { border-left: 2px solid #fff; }
+.gantt-tabla .gantt-sem { font-size: 11px; width: 38px; min-width: 38px; padding: 4px 2px; }
+.gantt-tabla td.gantt-celda { padding: 0 1px; width: 38px; min-width: 38px; border-left: 1px solid #eef1f5; }
+.gantt-tabla td.gantt-celda.gantt-s1 { border-left: 2px solid #dee2e6; }
+.gantt-barra { height: 16px; background: #4472c4; }
+.gantt-barra.ini { border-top-left-radius: 8px; border-bottom-left-radius: 8px; margin-left: 2px; }
+.gantt-barra.fin { border-top-right-radius: 8px; border-bottom-right-radius: 8px; margin-right: 2px; }
+.accion-verificador { font-size: 12px; color: #6c757d; margin-top: 3px; }
+
 #miniMapaVacio {
     display: none;
     position: absolute; inset: 0;
@@ -698,7 +750,7 @@ $(function () {
 <div class="row">
 <div class="col"></div>  
 <div class="col" style="text-align:right">
-  <i class="fa-solid fa-list-check"></i>&nbsp;<a href="#actividad">Actividades de esta iniciativa</a>
+  <i class="fa-solid fa-list-check"></i>&nbsp;<a href="#acciones">Acciones de esta iniciativa</a>
   &nbsp;&nbsp;<i class="fa-solid fa-map-location-dot"></i>&nbsp;<a href="#ubicacion">Ubicación</a>
   &nbsp;&nbsp;<i class="fa-solid fa-map-pin"></i>&nbsp;<a href="#ubicaciones">Ubicaciones adicionales</a>
   &nbsp;&nbsp;<i class="fa-solid fa-sack-dollar"></i>&nbsp;<a href="#financiamiento">Financiamiento</a>
@@ -740,7 +792,7 @@ seccion('fas fa-lightbulb', 'INICIATIVA');
 
 <div class="row">
   <?php campo($row, 'nombre_iniciativa', 'Nombre de la iniciativa', 'Nombre completo y descriptivo de la iniciativa.', ['col' => 'col-md-8', 'maxlength' => 255]); ?>
-  <?php campo($row, 'tipo_de_inversion', 'Tipo de inversión', 'Agrupación temática. Ej: Servicios Sanitarios, Acceso a la Montaña.', ['col' => 'col-md-4', 'maxlength' => 100, 'datalist' => 'tipo_de_inversion']); ?>
+  <?php campo($row, 'tipo_de_inversion', 'Tipo de brecha', 'Agrupación temática. Ej: Servicios Sanitarios, Acceso a la Montaña.', ['col' => 'col-md-4', 'maxlength' => 100, 'datalist' => 'tipo_de_inversion']); ?>
 </div>
 
 
@@ -1016,7 +1068,7 @@ seccion('fas fa-dollar-sign', 'FINANCIAMIENTO');
   </div>
 </div>
 
-<div class="subseccion">Costos (M$)</div>
+<div class="subseccion">COSTO POR ETAPA (M$)</div>
 <div class="row">
   <?php campo($row, 'costos_perfil_prefactibilidad', 'M$ Prefactibilidad', '', ['col' => 'col-md-3', 'class' => 'monto costo', 'value' => fnum($row['costos_perfil_prefactibilidad'] ?? null)]); ?>
   <?php campo($row, 'costos_diseno', 'M$ Diseño', '', ['col' => 'col-md-3', 'class' => 'monto costo', 'value' => fnum($row['costos_diseno'] ?? null)]); ?>
@@ -1030,7 +1082,7 @@ seccion('fas fa-dollar-sign', 'FINANCIAMIENTO');
 
 <!-- ========== FUENTES DE FINANCIAMIENTO POR ETAPA (tabla financiamiento) ========== -->
 <a name="financiamiento" id="financiamiento"></a>
-<div class="subseccion">Fuentes de financiamiento por etapa (M$)</div>
+<div class="subseccion">Fuente de financiamiento por etapa (M$)</div>
 <div class="row">
   <div class="col-12">
     <div class="form-group">
@@ -1128,7 +1180,7 @@ seccion('fas fa-dollar-sign', 'FINANCIAMIENTO');
 </div>
 -->
 
-<div class="subseccion">Gasto efectivo (M$)</div>
+<div class="subseccion">GASTO EFECTIVO POR ETAPA (M$)</div>
 <div class="row">
   <?php campo($row, 'gasto_perfil_prefactibilidad', 'Gasto Prefactibilidad', '', ['col' => 'col-md-3', 'class' => 'monto gasto', 'value' => fnum($row['gasto_perfil_prefactibilidad'] ?? null)]); ?>
   <?php campo($row, 'gasto_diseno', 'Gasto Diseño', '', ['col' => 'col-md-3', 'class' => 'monto gasto', 'value' => fnum($row['gasto_diseno'] ?? null)]); ?>
@@ -1138,7 +1190,7 @@ seccion('fas fa-dollar-sign', 'FINANCIAMIENTO');
 
 <!-- ========== GASTO POR ETAPA (tabla gasto) ========== -->
 <a name="gastos_etapa" id="gastos_etapa"></a>
-<div class="subseccion">Gasto por etapa (M$)</div>
+<div class="subseccion">FUENTE DE FINANCIAMIENTO DEL GASTO POR ETAPA (M$)</div>
 <div class="row">
   <div class="col-12">
     <div class="form-group">
@@ -1360,53 +1412,91 @@ datalist($db, 'financiamiento_del_mantenimiento', ['financiamiento_del_mantenimi
 </div>
 <!-- /Bloque de auditoría -->
 
+<?php
+// Mismo criterio que ubicaciones y financiamiento (la API valida igual)
+$puede_editar_acc = in_array($row_tabla["usuarios_profile"], ['ADMINISTRADOR', 'ÁREA'], true) && !$solo_lectura;
+?>
 <div class="alert alert-warning" role="alert" data-html2canvas-ignore="true">
-Muestra las actividades del proyecto en edición. Permite editar una actividad haciendo clic en la primera columna de cada fila y crear nuevas actividades mediante el enlace en la parte superior derecha.
-</div>	 
+Muestra las acciones de la ruta crítica de esta iniciativa, ordenadas por fecha de inicio. Permite editar una acción haciendo clic en la primera columna de cada fila y crear nuevas acciones mediante el botón en la parte superior derecha.
+</div>
 
 <div class="row top-info-div">
   <div class="col">
-    <a href="#" name="actividad" id="actividad"></a><h5>ACTIVIDADES DE LA INICIATIVA</h5>
-  </div>  
+    <a name="acciones" id="acciones"></a><h5>ACCIONES DE LA INICIATIVA</h5>
+  </div>
   <div class="col" style="text-align:right">
-    <?php if (!$solo_lectura): ?>
-    <a href="actividades_editar.php?proyectos_id=<?php echo (int) $row['id']; ?>&actividades_id=0" class="btn btn-primary text-white">
-      <i class="fa-solid fa-plus"></i>&nbsp;Nueva actividad
+    <?php if ($puede_editar_acc && $codigo_acciones !== ''): ?>
+    <a href="acciones_editar.php?proyectos_id=<?php echo (int) $row['id']; ?>&acciones_id=0" class="btn btn-primary text-white" data-html2canvas-ignore="true">
+      <i class="fa-solid fa-plus"></i>&nbsp;Nueva acción
     </a>
     <?php endif; ?>
-  </div>  
+  </div>
 </div>
 
+<?php if ($codigo_acciones === ''): ?>
+<p class="text-muted"><i class="fa-solid fa-circle-info"></i>&nbsp;Asigne un código a la iniciativa (ej: P001) y guarde los cambios para poder registrar acciones.</p>
+<?php elseif (!$acciones): ?>
+<p class="text-muted"><i class="fa-solid fa-circle-info"></i>&nbsp;Esta iniciativa no tiene acciones registradas.</p>
+<?php else: ?>
 <div class="row">
 <div class="col">
-<table class="table table-hover">
+<div class="gantt-wrap">
+<table class="table table-hover gantt-tabla">
   <thead>
     <tr class="table-primary">
-      <th class="labels" scope="col" style="width:10%">EDITAR</th>
-      <th class="labels" scope="col">ACTIVIDAD</th>
-      <th class="labels" scope="col">AÑO</th>
-      <th class="labels text-end" scope="col">MONTO (en miles de pesos)</th>
-      <th class="labels" scope="col">FINANCIAMIENTO</th>
-      <th class="labels" scope="col">ESTADO</th>
-      <th class="labels" scope="col">RESPONSABLE</th>      
+      <th class="labels" scope="col" rowspan="2" style="width:60px">EDITAR</th>
+      <th class="labels" scope="col" rowspan="2" style="min-width:280px">ACCIÓN</th>
+      <th class="labels text-center" scope="col" rowspan="2" style="width:95px">INICIO</th>
+      <th class="labels text-center" scope="col" rowspan="2" style="width:95px">FIN</th>
+      <?php foreach ($gantt_anos as $ano => $sems): ?>
+      <th class="labels text-center gantt-ano" scope="col" colspan="<?php echo count($sems); ?>"><?php echo (int) $ano; ?></th>
+      <?php endforeach; ?>
+    </tr>
+    <tr class="table-primary">
+      <?php foreach ($gantt_anos as $ano => $sems): foreach ($sems as $s): ?>
+      <th class="labels text-center gantt-sem" scope="col">S<?php echo ($s % 2) + 1; ?></th>
+      <?php endforeach; endforeach; ?>
     </tr>
   </thead>
   <tbody>
-  <?php while ($row_actividades = $result->fetch_assoc()) { ?>
+  <?php foreach ($acciones as $a):
+      $si = semestre_idx($a['inicio']);
+      $sf = semestre_idx($a['fin']);
+      if ($si === null) $si = $sf;
+      if ($sf === null) $sf = $si;
+  ?>
     <tr>
-      <td><?php if (!$solo_lectura): ?><a href="actividades_editar.php?actividades_id=<?php echo (int) $row_actividades["id"]; ?>&proyectos_id=<?php echo (int) $row['id']; ?>"><img src="img/edit.png" width="32"></a><?php else: ?><img src="img/edit.png" width="32" style="opacity:0.3; cursor:not-allowed;"><?php endif; ?></td>
-      <td><?php echo h($row_actividades["actividad"]); ?></td>
-      <td><?php echo h($row_actividades["ano"]); ?></td>
-      <td class="text-end"><?php echo number_format((float) $row_actividades["monto"], 0, ',', '.'); ?></td>
-      <td><?php echo h($row_actividades["finaciamiento"]); ?></td>
-      <td><?php echo h($row_actividades["estado"]); ?></td>
-      <td style="text-align:center"><?php echo h($row_actividades["responsable"]); ?></td>
+      <td>
+        <?php if ($puede_editar_acc): ?>
+        <a href="acciones_editar.php?acciones_id=<?php echo (int) $a['id']; ?>&proyectos_id=<?php echo (int) $row['id']; ?>"><img src="img/edit.png" width="32"></a>
+        <?php else: ?>
+        <a href="acciones_editar.php?acciones_id=<?php echo (int) $a['id']; ?>&proyectos_id=<?php echo (int) $row['id']; ?>" title="Ver"><img src="img/document.png" width="32"></a>
+        <?php endif; ?>
+      </td>
+      <td>
+        <?php echo h($a['nombre_accion']); ?>
+        <?php if (!empty($a['verificador'])): ?>
+        <div class="accion-verificador"><i class="fa-solid fa-check-double"></i>&nbsp;<?php echo h($a['verificador']); ?></div>
+        <?php endif; ?>
+      </td>
+      <td class="text-center text-nowrap"><?php echo fecha_cl($a['inicio']); ?></td>
+      <td class="text-center text-nowrap"><?php echo fecha_cl($a['fin']); ?></td>
+      <?php foreach ($gantt_anos as $ano => $sems): foreach ($sems as $s):
+          $activo = ($si !== null && $s >= $si && $s <= $sf);
+          $ini_bloque = $activo && $s === $si;
+          $fin_bloque = $activo && $s === $sf;
+      ?>
+      <td class="gantt-celda<?php echo ($s % 2 === 0) ? ' gantt-s1' : ''; ?>"><?php if ($activo): ?><div class="gantt-barra<?php echo $ini_bloque ? ' ini' : ''; ?><?php echo $fin_bloque ? ' fin' : ''; ?>" title="<?php echo h(fecha_cl($a['inicio']) . ' al ' . fecha_cl($a['fin'])); ?>"></div><?php endif; ?></td>
+      <?php endforeach; endforeach; ?>
     </tr>
-  <?php } ?>
+  <?php endforeach; ?>
   </tbody>
 </table>
-</div>  
 </div>
+<small class="text-muted">S1 = enero a junio, S2 = julio a diciembre. La barra marca los semestres que toca la acción entre su inicio y su fin.</small>
+</div>
+</div>
+<?php endif; ?>
 <?php } ?>
 
 
@@ -1424,6 +1514,19 @@ Muestra las actividades del proyecto en edición. Permite editar una actividad h
 <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.min.js"></script>
 <script src="app.js"></script>
+
+<script>
+// En esta pantalla todos los perfiles pueden exportar la ficha (también en modo lectura),
+// aunque una regla general oculte o deshabilite el botón.
+(function () {
+    function habilitarExportar() {
+        $('#btnPdfFicha').prop('disabled', false).removeClass('d-none disabled').css('opacity', '')
+            .each(function () { this.style.setProperty('display', 'inline-block', 'important'); });
+    }
+    $(habilitarExportar);
+    $(window).on('load', habilitarExportar);
+})();
+</script>
 
 <script>
 // ============================================================

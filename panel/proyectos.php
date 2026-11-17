@@ -19,8 +19,8 @@ if ($res_inst_f) {
     }
 }
 
-// Columnas ocultas: definen el Excel exportado (en este orden) y sirven para los filtros.
-// Siguen las secciones y los nombres de la ficha de la iniciativa (proyectos_editar.php).
+// Columnas ocultas: sirven para la búsqueda y los filtros del listado.
+// La exportación a Excel se arma aparte en js/exportar_iniciativas.js (formato Cartera Consolidada).
 // data = campo del JSON de la API; name = nombre interno (solo si data se repite con una columna visible)
 $columnas_ocultas = [
     // INICIATIVA
@@ -111,12 +111,12 @@ $columnas_ocultas = [
 <script src="js/jquery-3.5.1.min.js"></script>	
 	
 <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.10.25/css/jquery.dataTables.min.css"/>
-<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/buttons/1.7.1/css/buttons.dataTables.min.css">
 
 <script type="text/javascript" charset="utf8" src="https://cdn.datatables.net/1.10.25/js/jquery.dataTables.min.js"></script>
-<script type="text/javascript" charset="utf8" src="https://cdn.datatables.net/buttons/1.7.1/js/dataTables.buttons.min.js"></script>
-<script type="text/javascript" charset="utf8" src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.3/jszip.min.js"></script>
-<script type="text/javascript" charset="utf8" src="https://cdn.datatables.net/buttons/1.7.1/js/buttons.html5.min.js"></script>
+
+<!-- Exportación a Excel con formato (estilos, secciones, fórmulas) -->
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+<script src="js/exportar_iniciativas.js"></script>
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jquery-confirm/3.3.2/jquery-confirm.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-confirm/3.3.2/jquery-confirm.min.js"></script>	
@@ -282,7 +282,6 @@ $columnas_ocultas = [
 .bar-impl  { background: #9c27b0; }
 .bar-fin   { background: #43a047; }
 
-.dt-buttons { display: none !important; }
 </style> 
 	
 <script>
@@ -301,27 +300,13 @@ $(document).ready(function() {
         bFilter:   true,
         search: { regex: true, smart: true },
 
-        buttons: [{
-            extend: 'excel',
-            text: 'Exportar a Excel',
-            className: 'btn-excel',
-            title: null,   // sin fila de título: la primera fila son los encabezados
-            // Nombre: Iniciativas_AAAA-MM-DD_HH-MM.xlsx
-            filename: function () {
-                var d = new Date(), z = function (n) { return (n < 10 ? '0' : '') + n; };
-                return 'Iniciativas_' + d.getFullYear() + '-' + z(d.getMonth() + 1) + '-' + z(d.getDate()) +
-                       '_' + z(d.getHours()) + '-' + z(d.getMinutes());
-            },
-            exportOptions: { columns: ':not(.no-export)' }
-        }],
-
         retrieve:        true,
         searchHighlight: true,
         bPaginate:       true,
         sPaginationType: "full_numbers",
         iDisplayLength:  50,
         aaSorting:       [[2, 'asc']],
-        dom: 'B<"top"ifp<"clear">>rt<"bottom"ip<"clear">>',
+        dom: '<"top"ifp<"clear">>rt<"bottom"ip<"clear">>',
         responsive:  true,
         processing:  true,
 
@@ -330,14 +315,14 @@ $(document).ready(function() {
         // Visibles: VER, Código, Nombre, Sector, Etapa, Proceso, Inicio, Término
         // Luego las ocultas (definidas en PHP, mismo orden que el <thead>)
         "aoColumns": [
-            { mData: mixVer,             name: 'ver',     className: 'no-export', width: '4%',  orderable: false },
-            { mData: 'codigo',           name: 'codigo',  className: 'text-nowrap no-export', width: '6%' },
-            { mData: mixNombre,          name: 'nombre',  className: 'no-export', width: '34%' },
-            { mData: 'sector',           name: 'sector',  width: '14%', className: 'no-export' },
-            { mData: 'etapa_actual',     name: 'etapa',   width: '14%', className: 'no-export' },
-            { mData: 'actividad_actual', name: 'proceso', width: '14%', className: 'no-export' },
-            { mData: 'inicio',           name: 'inicio',  width: '7%', className: 'text-center no-export' },
-            { mData: 'termino',          name: 'termino', width: '7%', className: 'text-center no-export' }
+            { mData: mixVer,             name: 'ver',     width: '4%',  orderable: false },
+            { mData: 'codigo',           name: 'codigo',  className: 'text-nowrap', width: '6%' },
+            { mData: mixNombre,          name: 'nombre',  width: '34%' },
+            { mData: 'sector',           name: 'sector',  width: '14%' },
+            { mData: 'etapa_actual',     name: 'etapa',   width: '14%' },
+            { mData: 'actividad_actual', name: 'proceso', width: '14%' },
+            { mData: 'inicio',           name: 'inicio',  width: '7%', className: 'text-center' },
+            { mData: 'termino',          name: 'termino', width: '7%', className: 'text-center' }
         ].concat(columnasOcultas.map(function(c) {
             return { mData: c.data, name: c.name || c.data, visible: false, defaultContent: '' };
         })),
@@ -461,9 +446,57 @@ $(document).ready(function() {
         });
     }
 
+    // ── Exportar a Excel (todos los perfiles) ──
+    // Exporta las filas que cumplen los filtros y la búsqueda actuales, en el orden de la tabla.
     $("#bexcel").on("click", function() {
-        $(".buttons-excel").trigger("click");
+        var $b = $(this);
+        var filas = tabla.rows({ search: 'applied', order: 'applied' }).data().toArray();
+
+        if (!filas.length) {
+            $.alert({ title: 'Exportar datos', content: 'No hay iniciativas para exportar con los filtros actuales.', type: 'orange' });
+            return;
+        }
+        if (typeof ExcelJS === 'undefined' || typeof IniciativasExcel === 'undefined') {
+            $.alert({ title: 'Exportar datos', content: 'No se pudo cargar el generador de Excel. Recargue la página e intente nuevamente.', type: 'red' });
+            return;
+        }
+
+        var htmlOriginal = $b.html();
+        $b.prop('disabled', true).html('<i class="fa-solid fa-spinner fa-spin"></i>&nbsp;Generando...');
+
+        Promise.resolve($.getJSON('api/api_proyectos.php', { token: token, task: 'export_detalle' }))
+            .then(function (detalle) {
+                var wb = IniciativasExcel.construir(ExcelJS, filas, detalle, { filtros: describirFiltros(), fecha: new Date() });
+                return IniciativasExcel.descargar(wb, nombreArchivoExcel());
+            })
+            .catch(function (err) {
+                console.error('Error al exportar:', err);
+                $.alert({ title: 'Error', content: 'No se pudo generar el archivo Excel.', type: 'red' });
+            })
+            .then(function () {
+                $b.prop('disabled', false).html(htmlOriginal);
+            });
     });
+
+    // Filtros activos, para el encabezado del Excel
+    function describirFiltros() {
+        var partes = [];
+        [['#filtroInstrumento', 'Instrumento'], ['#filtroPlan', 'Plan Maestro'], ['#filtroSector', 'Sector'], ['#filtroPropias', 'Propias']]
+            .forEach(function (f) {
+                var $s = $(f[0]);
+                if ($s.length && $s.val() !== '') partes.push(f[1] + ': ' + $.trim($s.find('option:selected').text()));
+            });
+        var q = $.trim(tabla.search());
+        if (q) partes.push('Búsqueda: "' + q + '"');
+        return partes;
+    }
+
+    // Iniciativas_AAAA-MM-DD_HH-MM.xlsx
+    function nombreArchivoExcel() {
+        var d = new Date(), z = function (n) { return (n < 10 ? '0' : '') + n; };
+        return 'Iniciativas_' + d.getFullYear() + '-' + z(d.getMonth() + 1) + '-' + z(d.getDate()) +
+               '_' + z(d.getHours()) + '-' + z(d.getMinutes()) + '.xlsx';
+    }
 
     function mixVer(data) {
         return '<a href="proyectos_editar.php?proyectos_id=' + data.id + '">' +
@@ -512,7 +545,7 @@ function ayuda(){
                     <h5>INICIATIVAS</h5>
                 </div>
                 <div class="col text-end">
-                    <button id="bexcel" type="button" class="btn btn-primary btn-excel">
+                    <button id="bexcel" type="button" class="btn btn-primary btn-exportar">
                         <i class="fa-solid fa-file-arrow-down"></i>&nbsp;Exportar datos
                     </button>
                     <button onclick="window.location='proyectos_editar.php?proyectos_id=0'" type="button" class="btn btn-primary">
@@ -564,5 +597,16 @@ function ayuda(){
 <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.min.js"></script>
 <script src="app.js"></script>
+<script>
+// En esta pantalla todos los perfiles pueden exportar, aunque una regla general oculte o deshabilite el botón.
+(function () {
+    function habilitarExportar() {
+        $('#bexcel').prop('disabled', false).removeClass('d-none disabled')
+            .each(function () { this.style.setProperty('display', 'inline-block', 'important'); });
+    }
+    $(habilitarExportar);
+    $(window).on('load', habilitarExportar);
+})();
+</script>
 </body>
 </html>
